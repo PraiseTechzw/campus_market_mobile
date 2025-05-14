@@ -22,6 +22,7 @@ import PromotionalBanner from "@/components/promotional-banner";
 import Button from "@/components/button";
 import Card from "@/components/card";
 import { Banner } from "@/services/banner-service";
+import React from "react";
 
 export default function HomeScreen() {
   const { colors } = useTheme();
@@ -243,31 +244,39 @@ export default function HomeScreen() {
           <ActivityIndicator size="large" color={colors.tint} />
         </View>
       ) : recentProducts && recentProducts.length > 0 ? (
-        <View style={styles.recentProductsGrid}>
-          {recentProducts.slice(0, 4).map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onPress={() => router.push(`/product/${product.id}`)}
-              style={styles.recentProductCard}
+        <>
+          <View style={styles.recentProductsGrid}>
+            {recentProducts.slice(0, 4).map((item) => (
+              <View key={`recent-${item.id}`} style={styles.productCardContainer}>
+                <ProductCard
+                  product={{
+                    ...item,
+                    // Ensure images array is valid
+                    images: Array.isArray(item.images) && item.images.length > 0 
+                      ? item.images 
+                      : ["/placeholder.svg?height=200&width=200"]
+                  }}
+                  onPress={() => router.push(`/product/${item.id}`)}
+                  style={styles.recentProductCard}
+                />
+              </View>
+            ))}
+          </View>
+          {recentProducts.length > 4 && (
+            <Button
+              title="View More"
+              variant="outline"
+              onPress={() => router.push("/marketplace")}
+              style={styles.viewMoreButton}
             />
-          ))}
-        </View>
+          )}
+        </>
       ) : (
         <Card variant="outlined" style={styles.emptyCard}>
           <Text style={[styles.emptyText, { color: colors.textDim }]}>
             No recent items available
           </Text>
         </Card>
-      )}
-
-      {recentProducts && recentProducts.length > 4 && (
-        <Button
-          title="View More"
-          variant="outline"
-          onPress={() => router.push("/marketplace")}
-          style={styles.viewMoreButton}
-        />
       )}
     </View>
   );
@@ -372,17 +381,26 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
   recentProductsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 8,
+  },
+  productCardContainer: {
+    width: '50%', 
+    padding: 8,
+    marginBottom: 8,
+    minHeight: 320,
   },
   recentProductCard: {
-    width: "50%",
-    padding: 10,
+    flex: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
   },
   viewMoreButton: {
     marginHorizontal: 20,
-    marginTop: 18,
+    marginTop: 12,
+    marginBottom: 6,
   },
   loader: {
     padding: 24,

@@ -609,6 +609,473 @@ export default function HomeScreen() {
     </Card>
   );
 
+  // 1. Personalized Recommendations Section
+  const renderRecommendationsSection = () => {
+    if (!user) return null;
+    
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Recommended For You
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/marketplace")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {recommendedLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.tint} />
+          </View>
+        ) : recommendedProducts && recommendedProducts.length > 0 ? (
+          <FlatList
+            data={recommendedProducts}
+            renderItem={({ item }) => (
+              <ProductCard
+                product={item}
+                onPress={() => router.push(`/product/${item.id}`)}
+                style={styles.featuredProductCard}
+              />
+            )}
+            keyExtractor={(item) => `recommended-${item.id}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredList}
+          />
+        ) : (
+          <Card variant="outlined" style={styles.emptyCard}>
+            <Text style={[styles.emptyText, { color: colors.textDim }]}>
+              No recommendations available yet
+            </Text>
+          </Card>
+        )}
+      </View>
+    );
+  };
+
+  // 2. Recently Viewed Items Section
+  const renderRecentlyViewedSection = () => {
+    if (recentlyViewed.length === 0) return null;
+    
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Recently Viewed
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/marketplace")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={recentlyViewed}
+          renderItem={({ item }) => (
+            <ProductCard
+              product={item}
+              onPress={() => router.push(`/product/${item.id}`)}
+              style={styles.featuredProductCard}
+            />
+          )}
+          keyExtractor={(item) => `recent-viewed-${item.id}`}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.featuredList}
+          ListEmptyComponent={() => (
+            <Text style={[styles.emptyText, { color: colors.textDim, padding: 20 }]}>
+              No recently viewed items
+            </Text>
+          )}
+        />
+      </View>
+    );
+  };
+
+  // 3. Saved/Wishlist Section
+  const renderSavedItemsSection = () => {
+    if (!user || savedItems.length === 0) return null;
+    
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Your Wishlist
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/wishlist")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={savedItems}
+          renderItem={({ item }) => (
+            <ProductCard
+              product={item}
+              onPress={() => router.push(`/product/${item.id}`)}
+              style={styles.featuredProductCard}
+            />
+          )}
+          keyExtractor={(item) => `wishlist-${item.id}`}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.featuredList}
+          ListEmptyComponent={() => (
+            <Text style={[styles.emptyText, { color: colors.textDim, padding: 20 }]}>
+              No saved items
+            </Text>
+          )}
+        />
+      </View>
+    );
+  };
+
+  // 4. User Activity Dashboard
+  const renderUserActivitySection = () => {
+    if (!user) return null;
+    
+    return (
+      <Card variant="elevated" style={styles.activityCard}>
+        <Text style={[styles.activityTitle, { color: colors.text }]}>
+          Your Activity
+        </Text>
+        <View style={styles.activityGrid}>
+          <TouchableOpacity 
+            style={styles.activityItem} 
+            onPress={() => router.push("/profile?tab=selling")}
+          >
+            <View style={[styles.activityIconContainer, { backgroundColor: colors.neutral2 }]}>
+              <Ionicons name="pricetag-outline" size={22} color={colors.tint} />
+            </View>
+            <Text style={[styles.activityCount, { color: colors.text }]}>
+              {userActivities.selling}
+            </Text>
+            <Text style={[styles.activityLabel, { color: colors.textDim }]}>
+              Selling
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.activityItem} 
+            onPress={() => router.push("/profile?tab=orders")}
+          >
+            <View style={[styles.activityIconContainer, { backgroundColor: colors.neutral2 }]}>
+              <Ionicons name="bag-check-outline" size={22} color={colors.success} />
+            </View>
+            <Text style={[styles.activityCount, { color: colors.text }]}>
+              {userActivities.orders}
+            </Text>
+            <Text style={[styles.activityLabel, { color: colors.textDim }]}>
+              Orders
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.activityItem} 
+            onPress={() => router.push("/messages")}
+          >
+            <View style={[styles.activityIconContainer, { backgroundColor: colors.neutral2 }]}>
+              <Ionicons name="chatbubble-outline" size={22} color={colors.warning} />
+              {userActivities.messages > 0 && (
+                <View style={styles.badgeContainer}>
+                  <Text style={styles.badgeText}>{userActivities.messages}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.activityCount, { color: colors.text }]}>
+              {userActivities.messages}
+            </Text>
+            <Text style={[styles.activityLabel, { color: colors.textDim }]}>
+              Messages
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+    );
+  };
+
+  // 5. Notifications Center
+  const renderNotificationsSection = () => {
+    if (!user || notifications.length === 0) return null;
+    
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Notifications
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/notifications")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Card variant="outlined" style={styles.notificationsCard}>
+          {notifications.map((notification) => (
+            <TouchableOpacity 
+              key={notification.id} 
+              style={styles.notificationItem}
+              onPress={() => {
+                // Handle notification click based on type
+                if (notification.type === 'order') {
+                  router.push(`/order/${notification.reference_id}`);
+                } else if (notification.type === 'message') {
+                  router.push(`/messages/${notification.reference_id}`);
+                } else {
+                  router.push('/notifications');
+                }
+              }}
+            >
+              <View style={[styles.notificationIcon, { 
+                backgroundColor: 
+                  notification.type === 'order' ? colors.neutral2 : 
+                  notification.type === 'message' ? colors.neutral2 : 
+                  colors.neutral2 
+              }]}>
+                <Ionicons 
+                  name={
+                    notification.type === 'order' ? 'bag-check-outline' : 
+                    notification.type === 'message' ? 'chatbubble-outline' : 
+                    'notifications-outline'
+                  } 
+                  size={18} 
+                  color={
+                    notification.type === 'order' ? colors.success : 
+                    notification.type === 'message' ? colors.warning : 
+                    colors.tint
+                  } 
+                />
+              </View>
+              <View style={styles.notificationContent}>
+                <Text style={[styles.notificationText, { color: colors.text }]}>
+                  {notification.message}
+                </Text>
+                <Text style={[styles.notificationTime, { color: colors.textDim }]}>
+                  {new Date(notification.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+            </TouchableOpacity>
+          ))}
+        </Card>
+      </View>
+    );
+  };
+
+  // 6. Quick Filters/Tags
+  const renderQuickFiltersSection = () => {
+    // Popular search tags/filters
+    const quickFilters = [
+      { id: 'electronics', name: 'Electronics', icon: 'phone-portrait-outline' as const },
+      { id: 'furniture', name: 'Furniture', icon: 'bed-outline' as const },
+      { id: 'books', name: 'Books', icon: 'book-outline' as const },
+      { id: 'clothing', name: 'Clothing', icon: 'shirt-outline' as const },
+      { id: 'kitchen', name: 'Kitchen', icon: 'restaurant-outline' as const },
+      { id: 'sports', name: 'Sports', icon: 'basketball-outline' as const },
+    ];
+    
+    return (
+      <View style={styles.quickFiltersContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickFiltersContent}
+        >
+          {quickFilters.map((filter) => (
+            <TouchableOpacity 
+              key={filter.id}
+              style={[styles.quickFilterItem, { backgroundColor: colors.cardBackground }]}
+              onPress={() => router.push(`/marketplace?category=${filter.id}`)}
+            >
+              <View style={[styles.quickFilterIcon, { backgroundColor: colors.neutral2 }]}>
+                <Ionicons name={filter.icon} size={18} color={colors.tint} />
+              </View>
+              <Text style={[styles.quickFilterText, { color: colors.text }]}>
+                {filter.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  // 7. Deals/Discounts Section
+  const renderDealsSection = () => {
+    if (!dealsProducts || dealsProducts.length === 0) return null;
+    
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Hot Deals & Discounts
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/marketplace?discount=true")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {dealsLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.tint} />
+          </View>
+        ) : dealsProducts && dealsProducts.length > 0 ? (
+          <FlatList
+            data={dealsProducts}
+            renderItem={({ item }) => (
+              <ProductCard
+                product={item}
+                onPress={() => router.push(`/product/${item.id}`)}
+                style={styles.featuredProductCard}
+              />
+            )}
+            keyExtractor={(item) => `deal-${item.id}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredList}
+          />
+        ) : (
+          <Card variant="outlined" style={styles.emptyCard}>
+            <Text style={[styles.emptyText, { color: colors.textDim }]}>
+              No deals available at the moment
+            </Text>
+          </Card>
+        )}
+      </View>
+    );
+  };
+
+  // 8. Location-Based Listings
+  const renderNearbyItemsSection = () => {
+    if (!userLocation || !nearbyItems || nearbyItems.length === 0) return null;
+    
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Items Near You
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/marketplace?nearby=true")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={nearbyItems}
+          renderItem={({ item }) => (
+            <ProductCard
+              product={item}
+              onPress={() => router.push(`/product/${item.id}`)}
+              style={styles.featuredProductCard}
+            />
+          )}
+          keyExtractor={(item) => `nearby-${item.id}`}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.featuredList}
+          ListEmptyComponent={() => (
+            <Text style={[styles.emptyText, { color: colors.textDim, padding: 20 }]}>
+              No items near your location
+            </Text>
+          )}
+        />
+      </View>
+    );
+  };
+
+  // 9. Search History
+  const renderSearchHistorySection = () => {
+    if (searchHistory.length === 0) return null;
+    
+    return (
+      <View style={styles.searchHistoryContainer}>
+        <Text style={[styles.searchHistoryTitle, { color: colors.textDim }]}>
+          Recent Searches
+        </Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.searchHistoryContent}
+        >
+          {searchHistory.map((term, index) => (
+            <TouchableOpacity 
+              key={`search-${index}`} 
+              style={[styles.searchHistoryItem, { backgroundColor: colors.neutral2 }]}
+              onPress={() => {
+                setSearchQuery(term);
+                router.push({
+                  pathname: "/marketplace",
+                  params: { search: term },
+                });
+              }}
+            >
+              <Ionicons name="search-outline" size={14} color={colors.text} />
+              <Text style={[styles.searchHistoryText, { color: colors.text }]}>
+                {term}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  // 10. Popular/Trending Items
+  const renderTrendingSection = () => {
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Trending Now
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/marketplace?trending=true")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {trendingLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.tint} />
+          </View>
+        ) : trendingProducts && trendingProducts.length > 0 ? (
+          <FlatList
+            data={trendingProducts}
+            renderItem={({ item }) => (
+              <ProductCard
+                product={item}
+                onPress={() => router.push(`/product/${item.id}`)}
+                style={styles.featuredProductCard}
+              />
+            )}
+            keyExtractor={(item) => `trending-${item.id}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredList}
+          />
+        ) : (
+          <Card variant="outlined" style={styles.emptyCard}>
+            <Text style={[styles.emptyText, { color: colors.textDim }]}>
+              No trending items available
+            </Text>
+          </Card>
+        )}
+      </View>
+    )
+  };
+
   return (
     <ScreenContainer scrollable refreshing={refreshing} onRefresh={onRefresh}>
       <View style={styles.container}>
@@ -632,6 +1099,16 @@ export default function HomeScreen() {
         {renderPromotionalBanner()}
         {renderRecentSection()}
         {renderSellSection()}
+        {renderRecommendationsSection()}
+        {renderRecentlyViewedSection()}
+        {renderSavedItemsSection()}
+        {renderUserActivitySection()}
+        {renderNotificationsSection()}
+        {renderQuickFiltersSection()}
+        {renderDealsSection()}
+        {renderNearbyItemsSection()}
+        {renderSearchHistorySection()}
+        {renderTrendingSection()}
       </View>
     </ScreenContainer>
   );
@@ -766,5 +1243,170 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 200,
+  },
+  activityCard: {
+    margin: 20,
+    borderRadius: 22,
+    overflow: "hidden",
+    padding: 0,
+    backgroundColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  activityTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Poppins-Bold",
+    marginBottom: 12,
+    padding: 24,
+  },
+  activityGrid: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  activityItem: {
+    alignItems: "center",
+    width: '30%',
+  },
+  activityIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  activityCount: {
+    fontSize: 18,
+    fontWeight: "bold",
+    fontFamily: "Poppins-Bold",
+    marginLeft: 12,
+  },
+  activityLabel: {
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+  },
+  badgeContainer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: "#4CAF50", // Green
+    borderRadius: 10,
+    padding: 2,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    fontFamily: "Poppins-Bold",
+    color: "#FFFFFF", // White
+  },
+  notificationsCard: {
+    margin: 20,
+    borderRadius: 22,
+    overflow: "hidden",
+    padding: 0,
+    backgroundColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  notificationItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 24,
+  },
+  notificationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notificationContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  notificationText: {
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+  },
+  notificationTime: {
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+  },
+  quickFiltersContainer: {
+    margin: 20,
+    borderRadius: 22,
+    overflow: "hidden",
+    padding: 0,
+    backgroundColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  quickFiltersContent: {
+    padding: 24,
+  },
+  quickFilterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  quickFilterIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  quickFilterText: {
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+  },
+  searchHistoryContainer: {
+    margin: 20,
+    borderRadius: 22,
+    overflow: "hidden",
+    padding: 0,
+    backgroundColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  searchHistoryTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Poppins-Bold",
+    marginBottom: 12,
+    padding: 24,
+  },
+  searchHistoryContent: {
+    padding: 24,
+  },
+  searchHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  searchHistoryText: {
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    marginLeft: 6,
   },
 });

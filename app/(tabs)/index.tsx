@@ -34,6 +34,169 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  
+  // New state variables for the features
+  const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+  const [savedItems, setSavedItems] = useState<Product[]>([]);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
+  const [nearbyItems, setNearbyItems] = useState<Product[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [userActivities, setUserActivities] = useState<{
+    selling: number;
+    orders: number;
+    messages: number;
+  }>({ selling: 0, orders: 0, messages: 0 });
+
+  // Load recently viewed items from AsyncStorage
+  useEffect(() => {
+    const loadRecentlyViewed = async () => {
+      try {
+        const recentlyViewedJson = await AsyncStorage.getItem('recentlyViewed');
+        if (recentlyViewedJson) {
+          setRecentlyViewed(JSON.parse(recentlyViewedJson).slice(0, 6));
+        }
+      } catch (error) {
+        console.error("Error loading recently viewed items:", error);
+      }
+    };
+
+    const loadSearchHistory = async () => {
+      try {
+        const searchHistoryJson = await AsyncStorage.getItem('searchHistory');
+        if (searchHistoryJson) {
+          setSearchHistory(JSON.parse(searchHistoryJson).slice(0, 5));
+        }
+      } catch (error) {
+        console.error("Error loading search history:", error);
+      }
+    };
+
+    const loadSavedItems = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('saved_items')
+            .select('product_id')
+            .eq('user_id', user.id)
+            .limit(6);
+          
+          if (data && data.length > 0) {
+            const productIds = data.map(item => item.product_id);
+            const { data: products } = await supabase
+              .from('products')
+              .select('*, seller:profiles(id, firstName, lastName, profilePicture, isVerified)')
+              .in('id', productIds)
+              .eq('isActive', true);
+            
+            if (products) {
+              setSavedItems(products);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading saved items:", error);
+        }
+      }
+    };
+
+    const loadUserActivities = async () => {
+      if (user) {
+        try {
+          // Get count of user's active selling items
+          const { count: sellingCount } = await supabase
+            .from('products')
+            .select('id', { count: 'exact', head: true })
+            .eq('seller_id', user.id)
+            .eq('isActive', true);
+
+          // Get count of user's orders
+          const { count: ordersCount } = await supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('buyer_id', user.id);
+            
+          // Get count of unread messages
+          const { count: messagesCount } = await supabase
+            .from('messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('recipient_id', user.id)
+            .eq('is_read', false);
+
+          setUserActivities({
+            selling: sellingCount || 0,
+            orders: ordersCount || 0,
+            messages: messagesCount || 0
+          });
+        } catch (error) {
+          console.error("Error loading user activities:", error);
+        }
+      }
+    };
+
+    const loadNotifications = async () => {
+      if (user) {
+        try {
+          const { data } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_read', false)
+            .order('created_at', { ascending: false })
+            .limit(5);
+          
+          if (data) {
+            setNotifications(data);
+          }
+        } catch (error) {
+          console.error("Error loading notifications:", error);
+        }
+      }
+    };
+
+    const getUserLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          setUserLocation(location);
+        }
+      } catch (error) {
+        console.error("Error getting location:", error);
+      }
+    };
+
+    loadRecentlyViewed();
+    loadSearchHistory();
+    loadSavedItems();
+    loadUserActivities();
+    loadNotifications();
+    getUserLocation();
+  }, [user]);
+
+  // Get nearby items when location is available
+  useEffect(() => {
+    const loadNearbyItems = async () => {
+      if (userLocation) {
+        try {
+          // This is a simplified example. In a real app, you'd use geospatial queries
+          const { data } = await supabase
+            .from('products')
+            .select('*, seller:profiles(id, firstName, lastName, profilePicture, isVerified)')
+            .eq('isActive', true)
+            .order('created_at', { ascending: false })
+            .limit(6);
+          
+          if (data) {
+            setNearbyItems(data);
+          }
+        } catch (error) {
+          console.error("Error loading nearby items:", error);
+        }
+      }
+    };
+
+    loadNearbyItems();
+  }, [userLocation]);
 
   // Fetch banners
   const {
@@ -99,6 +262,88 @@ export default function HomeScreen() {
     query: () => supabase.from("categories").select("*").order("name"),
   });
 
+  // Fetch popular/trending products
+  const {
+    data: trendingProducts,
+    loading: trendingLoading,
+    refetch: refetchTrending,
+  } = useSupabaseQuery<Product>({
+    key: "trending_products",
+    query: () =>
+      supabase
+        .from("products")
+        .select(
+          `
+          *,
+          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+        `
+        )
+        .eq("isActive", true)
+        // In a real app, you would have view counts or a trending algorithm
+        .order("views", { ascending: false })
+        .limit(6),
+  });
+
+  // Fetch deals/discounts
+  const {
+    data: dealsProducts,
+    loading: dealsLoading,
+    refetch: refetchDeals,
+  } = useSupabaseQuery<Product>({
+    key: "deals_products",
+    query: () =>
+      supabase
+        .from("products")
+        .select(
+          `
+          *,
+          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+        `
+        )
+        .eq("isActive", true)
+        .eq("hasDiscount", true) // Assuming you have this field
+        .order("discountPercent", { ascending: false })
+        .limit(6),
+  });
+
+  // Fetch recommended products based on user preferences
+  const {
+    data: recommendedProducts,
+    loading: recommendedLoading,
+    refetch: refetchRecommended,
+  } = useSupabaseQuery<Product>({
+    key: "recommended_products",
+    query: () => {
+      // If user is logged in, get some products that might interest them
+      if (user) {
+        return supabase
+          .from("products")
+          .select(
+            `
+            *,
+            seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+          `
+          )
+          .eq("isActive", true)
+          .order("createdAt", { ascending: false })
+          .limit(6);
+      }
+      // Otherwise, just get some random popular products
+      return supabase
+        .from("products")
+        .select(
+          `
+          *,
+          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+        `
+        )
+        .eq("isActive", true)
+        .order("views", { ascending: false })
+        .limit(6);
+    },
+    enabled: !!user,
+  });
+
   const handleSearch = () => {
     if (searchQuery.trim()) {
       router.push({
@@ -131,8 +376,66 @@ export default function HomeScreen() {
       refetchFeatured(),
       refetchRecent(),
       refetchCategories(),
+      refetchTrending(),
+      refetchDeals(),
+      ...(user ? [refetchRecommended()] : []),
     ]);
     setRefreshing(false);
+
+    // Reload the other data
+    if (user) {
+      const loadUserData = async () => {
+        try {
+          // Reload recently viewed and other user-specific data
+          const recentlyViewedJson = await AsyncStorage.getItem('recentlyViewed');
+          if (recentlyViewedJson) {
+            setRecentlyViewed(JSON.parse(recentlyViewedJson).slice(0, 6));
+          }
+
+          const searchHistoryJson = await AsyncStorage.getItem('searchHistory');
+          if (searchHistoryJson) {
+            setSearchHistory(JSON.parse(searchHistoryJson).slice(0, 5));
+          }
+
+          // Reload saved items
+          const { data } = await supabase
+            .from('saved_items')
+            .select('product_id')
+            .eq('user_id', user.id)
+            .limit(6);
+          
+          if (data && data.length > 0) {
+            const productIds = data.map(item => item.product_id);
+            const { data: products } = await supabase
+              .from('products')
+              .select('*, seller:profiles(id, firstName, lastName, profilePicture, isVerified)')
+              .in('id', productIds)
+              .eq('isActive', true);
+            
+            if (products) {
+              setSavedItems(products);
+            }
+          }
+
+          // Reload notifications
+          const { data: notificationsData } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_read', false)
+            .order('created_at', { ascending: false })
+            .limit(5);
+          
+          if (notificationsData) {
+            setNotifications(notificationsData);
+          }
+        } catch (error) {
+          console.error("Error refreshing user data:", error);
+        }
+      };
+
+      loadUserData();
+    }
   };
 
   const renderWelcomeSection = () => (

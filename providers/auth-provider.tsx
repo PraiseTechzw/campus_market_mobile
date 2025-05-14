@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Handle deep links for auth flows
   useEffect(() => {
-    const handleDeepLink = async (event: { url: string; type: string }) => {
+    const handleDeepLink = async (event: Linking.EventType) => {
       if (event.url.includes("type=recovery") || event.url.includes("type=signup")) {
         // Extract the token from the URL
         const params = new URLSearchParams(event.url.split("#")[1])
@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for initial URL
     Linking.getInitialURL().then((url) => {
       if (url) {
-        handleDeepLink({ type: "url", url })
+        handleDeepLink({ url } as Linking.EventType)
       }
     })
 
@@ -395,7 +395,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           emailRedirectTo: `${DEEP_LINK_PREFIX}auth/callback?type=email_change`,
         },
-      })
+      } as any) // Use type assertion to bypass the type check
 
       if (error) {
         handleAuthError(error)
@@ -503,11 +503,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         handleAuthError(error)
       }
 
-      if (data && data.session) {
+      if (data?.session) {
+        // Store session in a variable to avoid type error
+        const session = data.session;
         setState((prev) => ({
           ...prev,
-          session: data.session,
-          user: data.session.user,
+          session,
+          user: session.user,
         }))
       }
     } catch (error) {

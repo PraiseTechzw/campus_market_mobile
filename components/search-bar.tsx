@@ -3,6 +3,8 @@ import { useColorScheme } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import Colors from "@/constants/Colors"
 
+type ThemeType = typeof Colors.light
+
 interface SearchBarProps {
   placeholder: string
   value: string
@@ -12,14 +14,25 @@ interface SearchBarProps {
 
 export default function SearchBar({ placeholder, value, onChangeText, onSubmit }: SearchBarProps) {
   const colorScheme = useColorScheme()
+  const theme: ThemeType = Colors[colorScheme ?? "light"]
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].cardBackground }]}>
-      <Ionicons name="search" size={20} color={Colors[colorScheme ?? "light"].textDim} />
+    <View style={[
+      styles.container,
+      {
+        backgroundColor: theme.cardBackground,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
+      }
+    ]}>
+      <Ionicons name="search" size={20} color={theme.textDim} />
       <TextInput
-        style={[styles.input, { color: Colors[colorScheme ?? "light"].text }]}
+        style={[styles.input, { color: theme.text }]}
         placeholder={placeholder}
-        placeholderTextColor={Colors[colorScheme ?? "light"].textDim}
+        placeholderTextColor={theme.textDim}
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
@@ -27,7 +40,7 @@ export default function SearchBar({ placeholder, value, onChangeText, onSubmit }
       />
       {value.length > 0 && (
         <TouchableOpacity onPress={() => onChangeText("")}>
-          <Ionicons name="close-circle" size={20} color={Colors[colorScheme ?? "light"].textDim} />
+          <Ionicons name="close-circle" size={20} color={theme.textDim} />
         </TouchableOpacity>
       )}
     </View>
@@ -42,12 +55,6 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     flex: 1,
-    backgroundColor: Colors[colorScheme ?? "light"].cardBackground,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
   },
   input: {
     flex: 1,

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { StyleSheet, Platform, View } from "react-native";
 import { Tabs } from "expo-router";
 import { useColorScheme } from "react-native";
 import Colors from "@/constants/Colors";
@@ -35,10 +35,15 @@ export default function TabLayout() {
           height: 60,
         },
         tabBarBackground: () => (
-          <BlurView
-            intensity={80}
-            tint={colorScheme === "dark" ? "dark" : "light"}
-            style={StyleSheet.absoluteFill}
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: colorScheme === "dark" 
+                  ? "rgba(0, 0, 0, 0.8)" 
+                  : "rgba(255, 255, 255, 0.8)",
+              }
+            ]}
           />
         ),
         tabBarItemStyle: {

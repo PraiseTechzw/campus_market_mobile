@@ -58,7 +58,7 @@ export default function PersonalizeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.skipContainer}>
-        <Button title="Skip" variant="text" onPress={handleSkip} />
+        <Button title="Skip" variant="secondary" onPress={handleSkip} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>

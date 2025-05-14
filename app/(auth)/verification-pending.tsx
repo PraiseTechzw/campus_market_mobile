@@ -19,7 +19,6 @@ import Animated, {
   withDelay,
   Easing,
 } from "react-native-reanimated"
-import { LinearGradient } from "expo-linear-gradient"
 import { BlurView } from "expo-blur"
 import { useState, useEffect } from "react"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
@@ -131,13 +130,6 @@ export default function VerificationPendingScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.background, colors.cardBackground]}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-
       <Animated.View entering={FadeIn.duration(800)} style={styles.content}>
         <Animated.View 
           entering={FadeInDown.delay(200).duration(1000)} 
@@ -209,13 +201,6 @@ export default function VerificationPendingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
   },
   content: {
     flex: 1,

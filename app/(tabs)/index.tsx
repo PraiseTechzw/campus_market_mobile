@@ -22,7 +22,6 @@ import PromotionalBanner from "@/components/promotional-banner";
 import Button from "@/components/button";
 import Card from "@/components/card";
 import { Banner } from "@/services/banner-service";
-import SkeletonPlaceholder from "react-native-skeleton-placeholder";
 
 export default function HomeScreen() {
   const { colors } = useTheme();
@@ -178,16 +177,9 @@ export default function HomeScreen() {
       </View>
 
       {featuredLoading ? (
-        <SkeletonPlaceholder borderRadius={16}>
-          <View style={{ flexDirection: "row", paddingHorizontal: 12 }}>
-            {[...Array(3)].map((_, i) => (
-              <View
-                key={i}
-                style={{ width: 220, height: 280, marginRight: 16 }}
-              />
-            ))}
-          </View>
-        </SkeletonPlaceholder>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </View>
       ) : featuredProducts && featuredProducts.length > 0 ? (
         <FlatList
           data={featuredProducts}
@@ -237,7 +229,7 @@ export default function HomeScreen() {
     >
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Recently Added
+          Recent Items
         </Text>
         <TouchableOpacity onPress={() => router.push("/marketplace")}>
           <Text style={[styles.seeAllText, { color: colors.tint }]}>
@@ -247,19 +239,9 @@ export default function HomeScreen() {
       </View>
 
       {recentLoading ? (
-        <SkeletonPlaceholder borderRadius={16}>
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              paddingHorizontal: 12,
-            }}
-          >
-            {[...Array(4)].map((_, i) => (
-              <View key={i} style={{ width: "48%", height: 260, margin: 4 }} />
-            ))}
-          </View>
-        </SkeletonPlaceholder>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </View>
       ) : recentProducts && recentProducts.length > 0 ? (
         <View style={styles.recentProductsGrid}>
           {recentProducts.slice(0, 4).map((product) => (
@@ -317,11 +299,9 @@ export default function HomeScreen() {
 
         {/* Banner Carousel */}
         {bannersLoading ? (
-          <SkeletonPlaceholder borderRadius={20}>
-            <View
-              style={{ width: "100%", height: 180, marginHorizontal: 16 }}
-            />
-          </SkeletonPlaceholder>
+          <View style={[styles.bannerPlaceholder, { backgroundColor: colors.neutral2 }]}>
+            <ActivityIndicator size="large" color={colors.tint} />
+          </View>
         ) : banners &&
           banners.filter((b) => b.type === "carousel").length > 0 ? (
           <BannerCarousel
@@ -454,5 +434,11 @@ const styles = StyleSheet.create({
   sellCardDescription: {
     fontSize: 15,
     fontFamily: "Poppins-Regular",
+  },
+  loadingContainer: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
   },
 });

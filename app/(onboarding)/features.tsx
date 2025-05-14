@@ -1,11 +1,26 @@
 "use client"
 
-import { StyleSheet, View, Text, FlatList, Image, Dimensions } from "react-native"
+import { StyleSheet, View, Text, FlatList, Dimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router } from "expo-router"
 import { useTheme } from "@/providers/theme-provider"
 import Button from "@/components/button"
-import Animated, { FadeIn } from "react-native-reanimated"
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeInUp, 
+  SlideInRight, 
+  ZoomIn,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withDelay,
+  withTiming,
+  useSharedValue,
+  withRepeat
+} from "react-native-reanimated"
+import { Feather } from "@expo/vector-icons"
+import { useEffect } from "react"
 
 const { width } = Dimensions.get("window")
 
@@ -45,6 +60,22 @@ const features: Feature[] = [
 
 export default function FeaturesScreen() {
   const { colors } = useTheme()
+  const pulseValue = useSharedValue(0)
+
+  useEffect(() => {
+    pulseValue.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1500 }),
+        withTiming(0, { duration: 1500 })
+      ),
+      -1,
+      true
+    )
+  }, [])
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(1 + pulseValue.value * 0.1) }],
+  }))
 
   const handleNext = () => {
     router.push("/(onboarding)/personalize")
@@ -56,35 +87,62 @@ export default function FeaturesScreen() {
 
   const renderFeatureItem = ({ item, index }: { item: Feature; index: number }) => (
     <Animated.View
-      entering={FadeIn.delay(300 + index * 200).duration(800)}
+      entering={FadeIn.delay(300 + index * 200).springify()}
       style={[styles.featureItem, { backgroundColor: colors.cardBackground }]}
     >
-      <View style={[styles.iconContainer, { backgroundColor: colors.tint + "20" }]}>
-        <Image
-          source={{ uri: `/placeholder.svg?height=32&width=32&text=${item.icon}` }}
-          style={styles.icon}
-          resizeMode="contain"
-        />
-      </View>
-      <View style={styles.featureTextContainer}>
-        <Text style={[styles.featureTitle, { color: colors.text }]}>{item.title}</Text>
-        <Text style={[styles.featureDescription, { color: colors.textDim }]}>{item.description}</Text>
-      </View>
+      <Animated.View 
+        style={[styles.iconContainer, { backgroundColor: colors.tint + "20" }, pulseStyle]}
+      >
+        <Animated.View entering={ZoomIn.delay(500 + index * 200).springify()}>
+          <Feather name={item.icon as any} size={24} color={colors.tint} />
+        </Animated.View>
+      </Animated.View>
+      <Animated.View 
+        entering={SlideInRight.delay(600 + index * 200).springify()}
+        style={styles.featureTextContainer}
+      >
+        <Animated.Text 
+          entering={FadeInDown.delay(700 + index * 200).springify()}
+          style={[styles.featureTitle, { color: colors.text }]}
+        >
+          {item.title}
+        </Animated.Text>
+        <Animated.Text 
+          entering={FadeInDown.delay(800 + index * 200).springify()}
+          style={[styles.featureDescription, { color: colors.textDim }]}
+        >
+          {item.description}
+        </Animated.Text>
+      </Animated.View>
     </Animated.View>
   )
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.skipContainer}>
-        <Button title="Skip" variant="text" onPress={handleSkip} />
-      </View>
+      <Animated.View 
+        entering={SlideInRight.delay(200).springify()}
+        style={styles.skipContainer}
+      >
+        <Button title="Skip" variant="ghost" onPress={handleSkip} />
+      </Animated.View>
 
-      <View style={styles.headerContainer}>
-        <Text style={[styles.title, { color: colors.text }]}>Key Features</Text>
-        <Text style={[styles.subtitle, { color: colors.textDim }]}>
+      <Animated.View 
+        entering={FadeInDown.delay(400).springify()}
+        style={styles.headerContainer}
+      >
+        <Animated.Text 
+          entering={FadeInDown.delay(500).springify()}
+          style={[styles.title, { color: colors.text }]}
+        >
+          Key Features
+        </Animated.Text>
+        <Animated.Text 
+          entering={FadeInDown.delay(600).springify()}
+          style={[styles.subtitle, { color: colors.textDim }]}
+        >
           Discover what makes Campus Market the perfect platform for campus commerce
-        </Text>
-      </View>
+        </Animated.Text>
+      </Animated.View>
 
       <FlatList
         data={features}
@@ -93,16 +151,24 @@ export default function FeaturesScreen() {
         contentContainerStyle={styles.featuresList}
       />
 
-      <View style={styles.footer}>
-        <View style={styles.paginationContainer}>
+      <Animated.View 
+        entering={FadeInUp.delay(900).springify()}
+        style={styles.footer}
+      >
+        <Animated.View 
+          entering={FadeInUp.delay(1000).springify()}
+          style={styles.paginationContainer}
+        >
           <View style={[styles.paginationDot, { backgroundColor: colors.border }]} />
           <View style={[styles.paginationDot, styles.activeDot, { backgroundColor: colors.tint }]} />
           <View style={[styles.paginationDot, { backgroundColor: colors.border }]} />
           <View style={[styles.paginationDot, { backgroundColor: colors.border }]} />
-        </View>
+        </Animated.View>
 
-        <Button title="Next" onPress={handleNext} fullWidth />
-      </View>
+        <Animated.View entering={FadeInUp.delay(1100).springify()}>
+          <Button title="Next" onPress={handleNext} fullWidth />
+        </Animated.View>
+      </Animated.View>
     </SafeAreaView>
   )
 }
@@ -145,10 +211,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
-  },
-  icon: {
-    width: 32,
-    height: 32,
   },
   featureTextContainer: {
     flex: 1,

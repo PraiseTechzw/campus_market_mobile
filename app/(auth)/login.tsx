@@ -29,7 +29,6 @@ import Animated, {
   interpolate,
   Extrapolate,
 } from "react-native-reanimated"
-import { LinearGradient } from "expo-linear-gradient"
 import { BlurView } from "expo-blur"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { globalStyles } from "@/constants/Styles"
@@ -111,13 +110,6 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.background, colors.cardBackground]}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-      
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidView}>
         <ScrollView 
           contentContainerStyle={styles.scrollContent} 
@@ -224,13 +216,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
   },
   keyboardAvoidView: {
     flex: 1,

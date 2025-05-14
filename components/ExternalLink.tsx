@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+mport { Link } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React from 'react';
 import { Platform } from 'react-native';
@@ -10,6 +10,7 @@ export function ExternalLink(
     <Link
       target="_blank"
       {...props}
+      // @ts-expect-error: External URLs are not typed.
       href={props.href}
       onPress={(e) => {
         if (Platform.OS !== 'web') {

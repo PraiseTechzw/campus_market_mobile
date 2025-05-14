@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { router } from "expo-router";
 import { useTheme } from "@/providers/theme-provider";
@@ -23,12 +24,53 @@ import Button from "@/components/button";
 import Card from "@/components/card";
 import { Banner } from "@/services/banner-service";
 import React from "react";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function HomeScreen() {
   const { colors } = useTheme();
   const { user, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [userLocation, setUserLocation] = useState<string | null>("Nearby Campus");
+  
+  // Load search history on component mount
+  useEffect(() => {
+    loadSearchHistory();
+  }, []);
+
+  const loadSearchHistory = async () => {
+    try {
+      const history = await AsyncStorage.getItem('search_history');
+      if (history) {
+        setSearchHistory(JSON.parse(history).slice(0, 5)); // Show only 5 most recent searches
+      }
+    } catch (error) {
+      console.error('Error loading search history:', error);
+    }
+  };
+
+  const saveSearchQuery = async (query: string) => {
+    if (!query.trim()) return;
+    
+    try {
+      // Load existing history
+      const history = await AsyncStorage.getItem('search_history');
+      let searches = history ? JSON.parse(history) : [];
+      
+      // Add new search to the beginning (most recent)
+      searches = [query, ...searches.filter((s: string) => s !== query)].slice(0, 10);
+      
+      // Save back to storage
+      await AsyncStorage.setItem('search_history', JSON.stringify(searches));
+      
+      // Update state
+      setSearchHistory(searches.slice(0, 5));
+    } catch (error) {
+      console.error('Error saving search history:', error);
+    }
+  };
 
   // Fetch banners
   const {
@@ -84,6 +126,74 @@ export default function HomeScreen() {
         .limit(10),
   });
 
+  // Fetch trending products (based on view count)
+  const {
+    data: trendingProducts,
+    loading: trendingLoading,
+    refetch: refetchTrending,
+  } = useSupabaseQuery<Product>({
+    key: "trending_products",
+    query: () =>
+      supabase
+        .from("products")
+        .select(
+          `
+          *,
+          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+        `
+        )
+        .eq("isActive", true)
+        .order("viewCount", { ascending: false })
+        .limit(6),
+  });
+
+  // Fetch nearby products
+  const {
+    data: nearbyProducts,
+    loading: nearbyLoading,
+    refetch: refetchNearby,
+  } = useSupabaseQuery<Product>({
+    key: "nearby_products",
+    query: () =>
+      supabase
+        .from("products")
+        .select(
+          `
+          *,
+          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+        `
+        )
+        .eq("isActive", true)
+        .eq("location", userLocation || "Nearby Campus")
+        .limit(6),
+  });
+
+  // Fetch personalized recommendations
+  const {
+    data: recommendedProducts,
+    loading: recommendedLoading,
+    refetch: refetchRecommended,
+  } = useSupabaseQuery<Product>({
+    key: "recommended_products",
+    query: () => {
+      // Only fetch recommendations if user is logged in
+      if (!user) return { data: null };
+      
+      return supabase
+        .from("products")
+        .select(
+          `
+          *,
+          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+        `
+        )
+        .eq("isActive", true)
+        .not("sellerId", "eq", user.id) // Exclude user's own products
+        .limit(6);
+    },
+    enabled: !!user,
+  });
+
   // Fetch categories
   const {
     data: categories,
@@ -96,11 +206,22 @@ export default function HomeScreen() {
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
+      // Save search query to history
+      saveSearchQuery(searchQuery);
+      
       router.push({
         pathname: "/marketplace",
         params: { search: searchQuery },
       });
     }
+  };
+
+  const handleSearchHistorySelect = (query: string) => {
+    setSearchQuery(query);
+    router.push({
+      pathname: "/marketplace",
+      params: { search: query },
+    });
   };
 
   const handleCategorySelect = (category: Category | null) => {
@@ -125,7 +246,11 @@ export default function HomeScreen() {
       refetchBanners(),
       refetchFeatured(),
       refetchRecent(),
+      refetchTrending(),
+      refetchNearby(),
+      user ? refetchRecommended() : Promise.resolve(),
       refetchCategories(),
+      loadSearchHistory(),
     ]);
     setRefreshing(false);
   };
@@ -144,6 +269,29 @@ export default function HomeScreen() {
           onChangeText={setSearchQuery}
           onSubmit={handleSearch}
         />
+        
+        {/* Search History */}
+        {searchHistory.length > 0 && (
+          <View style={styles.searchHistoryContainer}>
+            <Text style={[styles.searchHistoryTitle, { color: colors.textDim }]}>
+              Recent Searches
+            </Text>
+            <View style={styles.searchHistoryList}>
+              {searchHistory.map((query, index) => (
+                <TouchableOpacity
+                  key={`search-${index}`}
+                  style={[styles.searchHistoryItem, { backgroundColor: colors.neutral1 }]}
+                  onPress={() => handleSearchHistorySelect(query)}
+                >
+                  <Ionicons name="time-outline" size={16} color={colors.textDim} />
+                  <Text style={[styles.searchHistoryText, { color: colors.text }]} numberOfLines={1}>
+                    {query}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -205,6 +353,145 @@ export default function HomeScreen() {
       )}
     </View>
   );
+
+  const renderTrendingSection = () => (
+    <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Trending Now
+        </Text>
+        <TouchableOpacity onPress={() => router.push("/marketplace")}>
+          <Text style={[styles.seeAllText, { color: colors.tint }]}>
+            See All
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {trendingLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </View>
+      ) : trendingProducts && trendingProducts.length > 0 ? (
+        <FlatList
+          data={trendingProducts}
+          renderItem={({ item }) => (
+            <ProductCard
+              product={item}
+              onPress={() => router.push(`/product/${item.id}`)}
+              style={styles.featuredProductCard}
+            />
+          )}
+          keyExtractor={(item) => `trending-${item.id}`}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.featuredList}
+        />
+      ) : (
+        <Card variant="outlined" style={styles.emptyCard}>
+          <Text style={[styles.emptyText, { color: colors.textDim }]}>
+            No trending items available
+          </Text>
+        </Card>
+      )}
+    </View>
+  );
+
+  const renderNearbySection = () => (
+    <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.locationHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Nearby Items
+          </Text>
+          <TouchableOpacity style={styles.locationButton}>
+            <Ionicons name="location" size={16} color={colors.tint} />
+            <Text style={[styles.locationText, { color: colors.tint }]}>
+              {userLocation || "Nearby Campus"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={() => router.push("/marketplace")}>
+          <Text style={[styles.seeAllText, { color: colors.tint }]}>
+            See All
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {nearbyLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </View>
+      ) : nearbyProducts && nearbyProducts.length > 0 ? (
+        <FlatList
+          data={nearbyProducts}
+          renderItem={({ item }) => (
+            <ProductCard
+              product={item}
+              onPress={() => router.push(`/product/${item.id}`)}
+              style={styles.featuredProductCard}
+            />
+          )}
+          keyExtractor={(item) => `nearby-${item.id}`}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.featuredList}
+        />
+      ) : (
+        <Card variant="outlined" style={styles.emptyCard}>
+          <Text style={[styles.emptyText, { color: colors.textDim }]}>
+            No nearby items available
+          </Text>
+        </Card>
+      )}
+    </View>
+  );
+
+  const renderRecommendedSection = () => {
+    // Only show recommended section if user is logged in
+    if (!user) return null;
+    
+    return (
+      <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Recommended For You
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/marketplace")}>
+            <Text style={[styles.seeAllText, { color: colors.tint }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {recommendedLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.tint} />
+          </View>
+        ) : recommendedProducts && recommendedProducts.length > 0 ? (
+          <FlatList
+            data={recommendedProducts}
+            renderItem={({ item }) => (
+              <ProductCard
+                product={item}
+                onPress={() => router.push(`/product/${item.id}`)}
+                style={styles.featuredProductCard}
+              />
+            )}
+            keyExtractor={(item) => `recommended-${item.id}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredList}
+          />
+        ) : (
+          <Card variant="outlined" style={styles.emptyCard}>
+            <Text style={[styles.emptyText, { color: colors.textDim }]}>
+              No recommendations available
+            </Text>
+          </Card>
+        )}
+      </View>
+    );
+  };
 
   const renderPromotionalBanner = () => {
     if (!banners || banners.length === 0 || bannersLoading) return null;
@@ -320,6 +607,9 @@ export default function HomeScreen() {
         ) : null}
 
         {renderCategoriesSection()}
+        {renderTrendingSection()}
+        {renderNearbySection()}
+        {renderRecommendedSection()}
         {renderFeaturedSection()}
         {renderPromotionalBanner()}
         {renderRecentSection()}
@@ -346,6 +636,46 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     marginBottom: 12,
+  },
+  searchHistoryContainer: {
+    marginTop: 12,
+  },
+  searchHistoryTitle: {
+    fontSize: 14,
+    fontFamily: "Poppins-Medium",
+    marginBottom: 10,
+  },
+  searchHistoryList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  searchHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    margin: 4,
+  },
+  searchHistoryText: {
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
+    marginLeft: 6,
+    maxWidth: 120,
+  },
+  locationHeader: {
+    flexDirection: 'column',
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  locationText: {
+    fontSize: 14,
+    fontFamily: "Poppins-Medium",
+    marginLeft: 4,
   },
   bannerPlaceholder: {
     height: 180,

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Campus Market</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 0;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            position: relative;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .content {
+            padding: 30px;
+            background-color: #ffffff;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 20px 0;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .footer {
+            text-align: center;
+            padding: 25px;
+            font-size: 13px;
+            color: #666666;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+        .social-links {
+            margin: 25px 0;
+            text-align: center;
+        }
+        .social-links a {
+            margin: 0 12px;
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .social-links a:hover {
+            color: #45a049;
+        }
+        .expiry-notice {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        ul {
+            padding-left: 20px;
+            margin: 20px 0;
+        }
+        li {
+            margin-bottom: 10px;
+            position: relative;
+        }
+        li:before {
+            content: "•";
+            color: #4CAF50;
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+        p {
+            margin: 15px 0;
+            font-size: 15px;
+        }
+        .highlight {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+        .footer p {
+            margin: 8px 0;
+        }
+        .footer a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .header {
+                padding: 20px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+            .button {
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to Campus Market!</h1>
+        </div>
+        <div class="content">
+            <p>Dear <span class="highlight">{{ .Name }}</span>,</p>
+            
+            <p>Thank you for joining Campus Market! We're excited to have you as part of our community. To get started, please confirm your email address by clicking the button below:</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ .ConfirmationURL }}" class="button">Confirm Email Address</a>
+            </div>
+            
+            <div class="expiry-notice">
+                <strong>Note:</strong> This confirmation link will expire in 24 hours for security reasons.
+            </div>
+            
+            <p>If the button above doesn't work, you can also copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 13px;">{{ .ConfirmationURL }}</p>
+            
+            <p>Once you confirm your email, you'll have full access to:</p>
+            <ul>
+                <li>Browse and purchase items from fellow students</li>
+                <li>List your own items for sale</li>
+                <li>Connect with other campus members</li>
+                <li>Access exclusive campus marketplace features</li>
+                <li>Receive notifications about new listings</li>
+                <li>Participate in campus marketplace discussions</li>
+            </ul>
+            
+            <p>If you didn't create an account with Campus Market, you can safely ignore this email.</p>
+            
+            <div class="social-links">
+                <p>Connect with us on social media:</p>
+                <a href="https://facebook.com/campusmarket">Facebook</a> |
+                <a href="https://twitter.com/campusmarket">Twitter</a> |
+                <a href="https://instagram.com/campusmarket">Instagram</a> |
+            </div>
+            
+            <p>Best regards,<br>The Campus Market Team</p>
+        </div>
+        <div class="footer">
+            <p>This email was sent to <span class="highlight">{{ .Email }}</span>. Please do not reply to this email.</p>
+            <p>For support, please contact us at <a href="mailto:support@campusmarket.co.zw">support@campusmarket.co.zw</a></p>
+            <p>&copy; {{ .CurrentYear }} Campus Market. All rights reserved.</p>
+            <p>Harare, Zimbabwe</p>
+        </div>
+    </div>
+</body>
+</html> 

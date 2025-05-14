@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -6,13 +6,15 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
+  Image,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/providers/theme-provider";
 import { useSupabaseQuery } from "@/hooks/use-supabase-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import type { Product, Category } from "@/types";
+import type { Product, Category, Order } from "@/types";
 import ScreenContainer from "@/components/screen-container";
 import SearchBar from "@/components/search-bar";
 import CategoryList from "@/components/category-list";
@@ -23,6 +25,9 @@ import Button from "@/components/button";
 import Card from "@/components/card";
 import { Banner } from "@/services/banner-service";
 import React from "react";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 
 export default function HomeScreen() {
   const { colors } = useTheme();

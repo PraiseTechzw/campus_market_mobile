@@ -13,15 +13,24 @@ import Toast from "react-native-toast-message"
 export interface UserProfile {
   id: string
   email: string
+  first_name: string
+  last_name: string
   full_name: string
   phone: string | null
   avatar_url: string | null
   bio: string | null
+  rating: number | null
+  role: "student" | "admin"
   is_verified: boolean
   is_seller: boolean
-  role: "student" | "admin"
   created_at: string
   updated_at: string
+  academic_info?: {
+    institution?: string
+    course?: string
+    study_year?: string
+    major?: string
+  }
 }
 
 interface AuthState {
@@ -33,7 +42,7 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  signUp: (email: string, password: string, userData: Partial<UserProfile>) => Promise<void>
+  signUp: (email: string, password: string, userData: Partial<UserProfile & { firstName: string, lastName: string }>) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
@@ -222,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     throw error
   }
 
-  const signUp = async (email: string, password: string, userData: Partial<UserProfile>) => {
+  const signUp = async (email: string, password: string, userData: Partial<UserProfile & { firstName: string, lastName: string }>) => {
     setState((prev) => ({ ...prev, loading: true }))
 
     try {
@@ -233,7 +242,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           emailRedirectTo: `${DEEP_LINK_PREFIX}auth/callback?type=signup`,
           data: {
-            full_name: `${userData.firstName} ${userData.lastName}`.trim(),
+            first_name: userData.firstName || userData.first_name,
+            last_name: userData.lastName || userData.last_name,
+            full_name: `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
           },
         },
       })
@@ -244,36 +255,92 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.user) {
         // Create user profile in the database
-        const { error: profileError } = await supabase.from("profiles").insert([
+        // First check if profile already exists (might happen with email signups)
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", data.user.id)
+          .single();
+
+        if (!existingProfile) {
+          // Create new profile with all required fields
+          const { error: profileError } = await supabase.from("profiles").insert([
+            {
+              id: data.user.id,
+              email,
+              first_name: userData.firstName || userData.first_name || '',
+              last_name: userData.lastName || userData.last_name || '',
+              full_name: `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
+              phone: null,
+              avatar_url: null,
+              bio: null,
+              rating: null,
+              is_verified: false,
+              is_seller: false,
+              role: 'student',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+          ])
+
+          if (profileError) {
+            console.error("Error creating user profile:", profileError)
+            Toast.show({
+              type: "error",
+              text1: "Profile Error",
+              text2: "Failed to create user profile. Please contact support.",
+            })
+            
+            // Try to delete the auth user since we couldn't create their profile
+            try {
+              await supabase.auth.admin.deleteUser(data.user.id)
+            } catch (adminError) {
+              console.error("Could not delete auth user after profile creation failed:", adminError)
+            }
+            
+            return
+          }
+        }
+
+        // Also create default user settings
+        const { error: settingsError } = await supabase.from("user_settings").insert([
           {
             id: data.user.id,
-            email,
-            full_name: `${userData.firstName} ${userData.lastName}`.trim(),
-            phone: null,
-            avatar_url: null,
-            bio: null,
-            is_verified: false,
-            is_seller: false,
-            role: "student",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            notification_preferences: {
+              email: true,
+              push: true,
+              messages: true,
+              orders: true,
+              marketing: false
+            },
+            theme: "system",
+            language: "en",
+            currency: "USD",
+            privacy_settings: {
+              show_email: false,
+              show_phone: false,
+              show_activity: true
+            }
           },
         ])
 
-        if (profileError) {
-          console.error("Error creating profile:", profileError)
-          // If profile creation fails, we should delete the auth user
-          // But Supabase doesn't expose this API directly to clients
+        if (settingsError) {
+          console.error("Error creating user settings:", settingsError)
         }
 
         Toast.show({
           type: "success",
           text1: "Account Created",
-          text2: "Please check your email to verify your account",
+          text2: "Please check your email to verify your account.",
         })
       }
     } catch (error) {
-      console.error("Signup error:", error)
+      console.error("Error during signup:", error)
+      Toast.show({
+        type: "error",
+        text1: "Signup Failed",
+        text2: "An error occurred during signup. Please try again.",
+      })
     } finally {
       setState((prev) => ({ ...prev, loading: false }))
     }
@@ -422,44 +489,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, loading: true }))
 
     try {
-      if (!state.user?.id) {
+      if (!state.user) {
         throw new Error("User not authenticated")
       }
 
-      const { error } = await supabase
+      // Check if we need to update the auth metadata
+      const metadataUpdates: Record<string, any> = {}
+      if (updates.first_name || updates.last_name || updates.full_name) {
+        if (updates.first_name) metadataUpdates.first_name = updates.first_name
+        if (updates.last_name) metadataUpdates.last_name = updates.last_name
+        
+        // If full_name not explicitly provided, construct it from first and last name
+        if (!updates.full_name && (updates.first_name || updates.last_name)) {
+          const currentProfile = state.profile
+          metadataUpdates.full_name = `${updates.first_name || currentProfile?.first_name || ''} ${updates.last_name || currentProfile?.last_name || ''}`.trim()
+        } else if (updates.full_name) {
+          metadataUpdates.full_name = updates.full_name
+        }
+      }
+
+      // Update auth metadata if needed
+      if (Object.keys(metadataUpdates).length > 0) {
+        const { error: authError } = await supabase.auth.updateUser({
+          data: metadataUpdates,
+        })
+
+        if (authError) {
+          throw authError
+        }
+      }
+
+      // Update profile
+      const { data, error } = await supabase
         .from("profiles")
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
         })
         .eq("id", state.user.id)
+        .select()
+        .single()
 
       if (error) {
         throw error
       }
 
-      // Update local state
-      if (state.profile) {
-        const updatedProfile = { ...state.profile, ...updates }
-        setState((prev) => ({ ...prev, profile: updatedProfile }))
+      // Only update profile in state if everything succeeded
+      setState((prev) => ({
+        ...prev,
+        profile: data as UserProfile,
+        loading: false,
+      }))
 
-        // Update AsyncStorage
-        await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile))
-      }
+      // Update local storage
+      await AsyncStorage.setItem("userProfile", JSON.stringify(data))
 
+      // Show success message
       Toast.show({
         type: "success",
         text1: "Profile Updated",
-        text2: "Your profile has been successfully updated",
+        text2: "Your profile has been successfully updated.",
       })
     } catch (error: any) {
+      console.error("Error updating profile:", error)
+      setState((prev) => ({ ...prev, loading: false }))
+
+      // Show error message
       Toast.show({
         type: "error",
-        text1: "Error",
-        text2: error.message || "An error occurred while updating profile",
+        text1: "Update Failed",
+        text2: error.message || "Failed to update profile",
       })
-    } finally {
-      setState((prev) => ({ ...prev, loading: false }))
+
+      throw error
     }
   }
 

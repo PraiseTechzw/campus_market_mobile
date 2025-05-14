@@ -42,7 +42,7 @@ export default function VerificationPendingScreen() {
   useEffect(() => {
     // Check if user is verified and redirect if true
     if (user?.email_confirmed_at) {
-      router.replace("/(tabs)")
+      router.replace("/(auth)/preferences")
     }
   }, [user?.email_confirmed_at])
 
@@ -167,6 +167,10 @@ export default function VerificationPendingScreen() {
             <Text style={[styles.message, { color: colors.textDim }]}>
               Please check your email and click the verification link to activate your account. If you don't see the email,
               check your spam folder.
+            </Text>
+
+            <Text style={[styles.message, { color: colors.textDim, marginTop: 10 }]}>
+              After verification, you'll be able to set up your preferences and get personalized recommendations for products and accommodations.
             </Text>
 
             <Text style={[styles.note, { color: colors.textDim }]}>

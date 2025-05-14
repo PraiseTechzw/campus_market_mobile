@@ -20,7 +20,8 @@ export default function AuthCallbackScreen() {
       if (type === "recovery") {
         router.replace("/(auth)/reset-password")
       } else if (type === "signup") {
-        router.replace("/")
+        // After signup verification, direct to preferences page
+        router.replace("/(auth)/preferences")
       } else if (type === "email_change") {
         router.replace("/profile/edit")
       } else {
@@ -37,7 +38,7 @@ export default function AuthCallbackScreen() {
           {type === "recovery"
             ? "Processing password reset..."
             : type === "signup"
-              ? "Verifying your email..."
+              ? "Email verified! Preparing your account..."
               : type === "email_change"
                 ? "Updating your email..."
                 : "Processing authentication..."}

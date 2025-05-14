@@ -16,6 +16,7 @@ export default function AuthLayout() {
       <Stack.Screen name="reset-password" />
       <Stack.Screen name="reset-password-sent" />
       <Stack.Screen name="verification-pending" />
+      <Stack.Screen name="preferences" />
     </Stack>
   )
 } 

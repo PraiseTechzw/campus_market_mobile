@@ -83,11 +83,101 @@ export interface Conversation {
   productImage?: string
 }
 
+// Accommodation types
+export interface AccommodationType {
+  id: string
+  name: string
+  description?: string
+  icon: string
+}
+
+export type AmenityCategory = "essential" | "feature" | "safety" | "location"
+
+export interface Amenity {
+  id: string
+  name: string
+  icon: string
+  category: AmenityCategory
+}
+
+export interface AccommodationListing {
+  id: string
+  title: string
+  description: string
+  ownerId: string
+  owner?: User
+  typeId: string
+  type?: AccommodationType
+  amenities: string[]
+  amenityDetails?: Amenity[]
+  pricePerMonth: number
+  securityDeposit?: number
+  bedrooms: number
+  bathrooms: number
+  maxOccupants: number
+  address: string
+  locationLat?: number
+  locationLng?: number
+  images: string[]
+  availableFrom: string
+  minimumStayMonths: number
+  isFurnished: boolean
+  isVerified: boolean
+  isActive: boolean
+  featured: boolean
+  createdAt: string
+  updatedAt: string
+  distance?: number // Calculated field for location-based searching
+}
+
+export type BookingStatus = "pending" | "approved" | "rejected" | "cancelled" | "completed"
+
+export interface AccommodationBooking {
+  id: string
+  listingId: string
+  listing?: AccommodationListing
+  tenantId: string
+  tenant?: User
+  ownerId: string
+  owner?: User
+  status: BookingStatus
+  moveInDate: string
+  moveOutDate?: string
+  monthlyRent: number
+  securityDeposit?: number
+  isDepositPaid: boolean
+  specialRequests?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AccommodationReview {
+  id: string
+  listingId: string
+  reviewerId: string
+  reviewer?: User
+  bookingId?: string
+  rating: number
+  reviewText?: string
+  createdAt: string
+}
+
 // Filter types
 export interface FilterOptions {
   priceRange: [number, number]
   condition: ProductCondition[]
   sortBy: "newest" | "oldest" | "price_low_high" | "price_high_low"
+}
+
+export interface AccommodationFilterOptions {
+  priceRange: [number, number]
+  bedrooms?: number[]
+  bathrooms?: number[]
+  accommodationType?: string[]
+  amenities?: string[]
+  availableFrom?: string
+  isFurnished?: boolean
+  sortBy: "newest" | "oldest" | "price_low_high" | "price_high_low" | "distance"
 }
 
 // Empty state types
@@ -100,6 +190,8 @@ export type EmptyStateType =
   | "no_notifications"
   | "no_activity"
   | "no_connections"
+  | "no_accommodation"
+  | "no_bookings"
 
 export interface EmptyState {
   type: EmptyStateType
@@ -187,6 +279,26 @@ export const EMPTY_STATES: Record<EmptyStateType, EmptyState> = {
     message: "Connect with other students to start trading",
     action: {
       label: "Find Students",
+      onPress: () => {} // This will be set dynamically
+    }
+  },
+  no_accommodation: {
+    type: "no_accommodation",
+    icon: "home",
+    title: "No Accommodations Found",
+    message: "Be the first to list your accommodation for students on campus",
+    action: {
+      label: "List Accommodation",
+      onPress: () => {} // This will be set dynamically
+    }
+  },
+  no_bookings: {
+    type: "no_bookings",
+    icon: "calendar",
+    title: "No Bookings",
+    message: "Your accommodation booking history will appear here",
+    action: {
+      label: "Find Accommodation",
       onPress: () => {} // This will be set dynamically
     }
   }

@@ -251,88 +251,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         handleAuthError(error)
+        return
       }
 
+      // If user creation was successful, show success message
       if (data.user) {
-        // Create user profile in the database
-        // First check if profile already exists (might happen with email signups)
-        const { data: existingProfile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", data.user.id)
-          .single();
-
-        if (!existingProfile) {
-          // Create new profile with all required fields
-          const { error: profileError } = await supabase.from("profiles").insert([
-            {
-              id: data.user.id,
-              email,
-              first_name: userData.firstName || userData.first_name || '',
-              last_name: userData.lastName || userData.last_name || '',
-              full_name: `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
-              phone: null,
-              avatar_url: null,
-              bio: null,
-              rating: null,
-              is_verified: false,
-              is_seller: false,
-              role: 'student',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            },
-          ])
-
-          if (profileError) {
-            console.error("Error creating user profile:", profileError)
-            Toast.show({
-              type: "error",
-              text1: "Profile Error",
-              text2: "Failed to create user profile. Please contact support.",
-            })
-            
-            // Try to delete the auth user since we couldn't create their profile
-            try {
-              await supabase.auth.admin.deleteUser(data.user.id)
-            } catch (adminError) {
-              console.error("Could not delete auth user after profile creation failed:", adminError)
-            }
-            
-            return
-          }
-        }
-
-        // Also create default user settings
-        const { error: settingsError } = await supabase.from("user_settings").insert([
-          {
-            id: data.user.id,
-            notification_preferences: {
-              email: true,
-              push: true,
-              messages: true,
-              orders: true,
-              marketing: false
-            },
-            theme: "system",
-            language: "en",
-            currency: "USD",
-            privacy_settings: {
-              show_email: false,
-              show_phone: false,
-              show_activity: true
-            }
-          },
-        ])
-
-        if (settingsError) {
-          console.error("Error creating user settings:", settingsError)
-        }
-
         Toast.show({
           type: "success",
           text1: "Account Created",
           text2: "Please check your email to verify your account.",
         })
+
+        // Note: Profile and user_settings creation is handled by the database trigger
+        // The profiles table has a trigger that creates entries when a new auth.users record is created
       }
     } catch (error) {
       console.error("Error during signup:", error)

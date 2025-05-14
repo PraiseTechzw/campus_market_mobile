@@ -1,28 +1,34 @@
-"use client"
-
-import { useState } from "react"
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator } from "react-native"
-import { router } from "expo-router"
-import { useTheme } from "@/providers/theme-provider"
-import { useSupabaseQuery } from "@/hooks/use-supabase-query"
-import { supabase } from "@/lib/supabase"
-import { useAuth } from "@/providers/auth-provider"
-import type { Product, Category } from "@/types"
-import ScreenContainer from "@/components/screen-container"
-import SearchBar from "@/components/search-bar"
-import CategoryList from "@/components/category-list"
-import ProductCard from "@/components/product-card"
-import BannerCarousel from "@/components/banner-carousel"
-import PromotionalBanner from "@/components/promotional-banner"
-import Button from "@/components/button"
-import Card from "@/components/card"
-import { Banner } from "@/services/banner-service"
+import { useState } from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { router } from "expo-router";
+import { useTheme } from "@/providers/theme-provider";
+import { useSupabaseQuery } from "@/hooks/use-supabase-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/providers/auth-provider";
+import type { Product, Category } from "@/types";
+import ScreenContainer from "@/components/screen-container";
+import SearchBar from "@/components/search-bar";
+import CategoryList from "@/components/category-list";
+import ProductCard from "@/components/product-card";
+import BannerCarousel from "@/components/banner-carousel";
+import PromotionalBanner from "@/components/promotional-banner";
+import Button from "@/components/button";
+import Card from "@/components/card";
+import { Banner } from "@/services/banner-service";
+import SkeletonPlaceholder from "react-native-skeleton-placeholder";
 
 export default function HomeScreen() {
-  const { colors } = useTheme()
-  const { user, profile } = useAuth()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [refreshing, setRefreshing] = useState(false)
+  const { colors } = useTheme();
+  const { user, profile } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fetch banners
   const {
@@ -31,8 +37,9 @@ export default function HomeScreen() {
     refetch: refetchBanners,
   } = useSupabaseQuery<Banner>({
     key: "banners",
-    query: () => supabase.from("banners").select("*").eq("isActive", true).order("order"),
-  })
+    query: () =>
+      supabase.from("banners").select("*").eq("isActive", true).order("order"),
+  });
 
   // Fetch featured products
   const {
@@ -44,15 +51,17 @@ export default function HomeScreen() {
     query: () =>
       supabase
         .from("products")
-        .select(`
+        .select(
+          `
           *,
           seller:profiles(id, firstName, lastName, profilePicture, isVerified)
-        `)
+        `
+        )
         .eq("isActive", true)
         .eq("isFeatured", true)
         .order("createdAt", { ascending: false })
         .limit(6),
-  })
+  });
 
   // Fetch recent products
   const {
@@ -64,14 +73,16 @@ export default function HomeScreen() {
     query: () =>
       supabase
         .from("products")
-        .select(`
+        .select(
+          `
           *,
           seller:profiles(id, firstName, lastName, profilePicture, isVerified)
-        `)
+        `
+        )
         .eq("isActive", true)
         .order("createdAt", { ascending: false })
         .limit(10),
-  })
+  });
 
   // Fetch categories
   const {
@@ -81,43 +92,50 @@ export default function HomeScreen() {
   } = useSupabaseQuery<Category>({
     key: "categories",
     query: () => supabase.from("categories").select("*").order("name"),
-  })
+  });
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
       router.push({
         pathname: "/marketplace",
         params: { search: searchQuery },
-      })
+      });
     }
-  }
+  };
 
   const handleCategorySelect = (category: Category | null) => {
     router.push({
       pathname: "/marketplace",
       params: { category: category?.id },
-    })
-  }
+    });
+  };
 
   const handleBannerPress = (banner: Banner) => {
     if (banner.actionUrl) {
       // Handle navigation based on action URL
       if (banner.actionUrl.startsWith("/")) {
-        router.push(banner.actionUrl)
+        router.push(banner.actionUrl);
       }
     }
-  }
+  };
 
   const onRefresh = async () => {
-    setRefreshing(true)
-    await Promise.all([refetchBanners(), refetchFeatured(), refetchRecent(), refetchCategories()])
-    setRefreshing(false)
-  }
+    setRefreshing(true);
+    await Promise.all([
+      refetchBanners(),
+      refetchFeatured(),
+      refetchRecent(),
+      refetchCategories(),
+    ]);
+    setRefreshing(false);
+  };
 
   const renderWelcomeSection = () => (
     <View style={styles.welcomeSection}>
       <Text style={[styles.welcomeText, { color: colors.text }]}>
-        {user ? `Welcome back, ${profile?.full_name}!` : "Welcome to Campus Market!"}
+        {user
+          ? `Welcome back, ${profile?.full_name}!`
+          : "Welcome to Campus Market!"}
       </Text>
       <View style={styles.searchContainer}>
         <SearchBar
@@ -128,11 +146,13 @@ export default function HomeScreen() {
         />
       </View>
     </View>
-  )
+  );
 
   const renderCategoriesSection = () => (
     <View style={styles.sectionContainer}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Categories</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        Categories
+      </Text>
       <CategoryList
         categories={categories || []}
         selectedCategoryId={null}
@@ -140,19 +160,34 @@ export default function HomeScreen() {
         showAllOption={false}
       />
     </View>
-  )
+  );
 
   const renderFeaturedSection = () => (
-    <View style={styles.sectionContainer}>
+    <View
+      style={[styles.sectionContainer, { backgroundColor: colors.background }]}
+    >
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Featured Items</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Featured Items
+        </Text>
         <TouchableOpacity onPress={() => router.push("/marketplace")}>
-          <Text style={[styles.seeAllText, { color: colors.tint }]}>See All</Text>
+          <Text style={[styles.seeAllText, { color: colors.tint }]}>
+            See All
+          </Text>
         </TouchableOpacity>
       </View>
 
       {featuredLoading ? (
-        <ActivityIndicator size="small" color={colors.tint} style={styles.loader} />
+        <SkeletonPlaceholder borderRadius={16}>
+          <View style={{ flexDirection: "row", paddingHorizontal: 12 }}>
+            {[...Array(3)].map((_, i) => (
+              <View
+                key={i}
+                style={{ width: 220, height: 280, marginRight: 16 }}
+              />
+            ))}
+          </View>
+        </SkeletonPlaceholder>
       ) : featuredProducts && featuredProducts.length > 0 ? (
         <FlatList
           data={featuredProducts}
@@ -170,34 +205,61 @@ export default function HomeScreen() {
         />
       ) : (
         <Card variant="outlined" style={styles.emptyCard}>
-          <Text style={[styles.emptyText, { color: colors.textDim }]}>No featured items available</Text>
+          <Text style={[styles.emptyText, { color: colors.textDim }]}>
+            No featured items available
+          </Text>
         </Card>
       )}
     </View>
-  )
+  );
 
   const renderPromotionalBanner = () => {
-    if (!banners || banners.length === 0 || bannersLoading) return null
+    if (!banners || banners.length === 0 || bannersLoading) return null;
 
     // Find a promotional banner that's not in the carousel
-    const promotionalBanner = banners.find((banner) => banner.type === "promotional")
+    const promotionalBanner = banners.find(
+      (banner) => banner.type === "promotional"
+    );
 
-    if (!promotionalBanner) return null
+    if (!promotionalBanner) return null;
 
-    return <PromotionalBanner banner={promotionalBanner} onPress={handleBannerPress} />
-  }
+    return (
+      <PromotionalBanner
+        banner={promotionalBanner}
+        onPress={handleBannerPress}
+      />
+    );
+  };
 
   const renderRecentSection = () => (
-    <View style={styles.sectionContainer}>
+    <View
+      style={[styles.sectionContainer, { backgroundColor: colors.background }]}
+    >
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recently Added</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Recently Added
+        </Text>
         <TouchableOpacity onPress={() => router.push("/marketplace")}>
-          <Text style={[styles.seeAllText, { color: colors.tint }]}>See All</Text>
+          <Text style={[styles.seeAllText, { color: colors.tint }]}>
+            See All
+          </Text>
         </TouchableOpacity>
       </View>
 
       {recentLoading ? (
-        <ActivityIndicator size="small" color={colors.tint} style={styles.loader} />
+        <SkeletonPlaceholder borderRadius={16}>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              paddingHorizontal: 12,
+            }}
+          >
+            {[...Array(4)].map((_, i) => (
+              <View key={i} style={{ width: "48%", height: 260, margin: 4 }} />
+            ))}
+          </View>
+        </SkeletonPlaceholder>
       ) : recentProducts && recentProducts.length > 0 ? (
         <View style={styles.recentProductsGrid}>
           {recentProducts.slice(0, 4).map((product) => (
@@ -211,7 +273,9 @@ export default function HomeScreen() {
         </View>
       ) : (
         <Card variant="outlined" style={styles.emptyCard}>
-          <Text style={[styles.emptyText, { color: colors.textDim }]}>No recent items available</Text>
+          <Text style={[styles.emptyText, { color: colors.textDim }]}>
+            No recent items available
+          </Text>
         </Card>
       )}
 
@@ -224,21 +288,27 @@ export default function HomeScreen() {
         />
       )}
     </View>
-  )
+  );
 
   const renderSellSection = () => (
     <Card variant="elevated" style={styles.sellCard}>
       <View style={styles.sellCardContent}>
         <View style={styles.sellCardTextContainer}>
-          <Text style={[styles.sellCardTitle, { color: colors.text }]}>Have something to sell?</Text>
+          <Text style={[styles.sellCardTitle, { color: colors.text }]}>
+            Have something to sell?
+          </Text>
           <Text style={[styles.sellCardDescription, { color: colors.textDim }]}>
             List your items and reach thousands of students on campus
           </Text>
         </View>
-        <Button title="Sell Now" icon="add-circle-outline" onPress={() => router.push("/sell")} />
+        <Button
+          title="Sell Now"
+          icon="add-circle-outline"
+          onPress={() => router.push("/sell")}
+        />
       </View>
     </Card>
-  )
+  );
 
   return (
     <ScreenContainer scrollable refreshing={refreshing} onRefresh={onRefresh}>
@@ -247,11 +317,17 @@ export default function HomeScreen() {
 
         {/* Banner Carousel */}
         {bannersLoading ? (
-          <View style={styles.bannerPlaceholder}>
-            <ActivityIndicator size="small" color={colors.tint} />
-          </View>
-        ) : banners && banners.filter((b) => b.type === "carousel").length > 0 ? (
-          <BannerCarousel banners={banners.filter((b) => b.type === "carousel")} onBannerPress={handleBannerPress} />
+          <SkeletonPlaceholder borderRadius={20}>
+            <View
+              style={{ width: "100%", height: 180, marginHorizontal: 16 }}
+            />
+          </SkeletonPlaceholder>
+        ) : banners &&
+          banners.filter((b) => b.type === "carousel").length > 0 ? (
+          <BannerCarousel
+            banners={banners.filter((b) => b.type === "carousel")}
+            onBannerPress={handleBannerPress}
+          />
         ) : null}
 
         {renderCategoriesSection()}
@@ -261,7 +337,7 @@ export default function HomeScreen() {
         {renderSellSection()}
       </View>
     </ScreenContainer>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -276,7 +352,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 26,
     fontWeight: "bold",
-    fontFamily: 'Poppins-Bold',
+    fontFamily: "Poppins-Bold",
     marginBottom: 18,
   },
   searchContainer: {
@@ -302,11 +378,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: "Poppins-SemiBold",
   },
   seeAllText: {
     fontSize: 15,
-    fontFamily: 'Poppins-Regular',
+    fontFamily: "Poppins-Regular",
   },
   featuredList: {
     paddingHorizontal: 12,
@@ -336,7 +412,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 32,
     borderRadius: 18,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -344,17 +420,17 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    fontFamily: 'Poppins-Regular',
+    fontFamily: "Poppins-Regular",
   },
   sellCard: {
     margin: 20,
     borderRadius: 22,
-    overflow: 'hidden',
+    overflow: "hidden",
     padding: 0,
-    backgroundColor: 'transparent',
-    shadowColor: '#000',
+    backgroundColor: "transparent",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 3,
   },
@@ -372,11 +448,11 @@ const styles = StyleSheet.create({
   sellCardTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    fontFamily: 'Poppins-Bold',
+    fontFamily: "Poppins-Bold",
     marginBottom: 6,
   },
   sellCardDescription: {
     fontSize: 15,
-    fontFamily: 'Poppins-Regular',
+    fontFamily: "Poppins-Regular",
   },
-})
+});

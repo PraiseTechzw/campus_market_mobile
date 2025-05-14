@@ -81,6 +81,7 @@ export const getProducts = async (): Promise<Product[]> => {
 
 export const getProductById = async (id: string): Promise<Product | null> => {
   try {
+    // First try with the foreign key relationship
     const { data, error } = await supabase
       .from("products")
       .select(`
@@ -93,9 +94,67 @@ export const getProductById = async (id: string): Promise<Product | null> => {
       .single()
 
     if (error) {
-      console.error("Error fetching product:", error)
-      // Fallback to mock data
-      return productsWithSellers.find((p) => p.id === id) || null
+      console.error("Error fetching product with seller relationship:", error)
+      
+      // If the relationship query fails, try fetching just the product
+      const { data: productOnly, error: productError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", id)
+        .single()
+        
+      if (productError) {
+        console.error("Error fetching product:", productError)
+        // Fallback to mock data as last resort
+        return productsWithSellers.find((p) => p.id === id) || null
+      }
+      
+      // If we have the product but not the seller relationship, fetch seller separately
+      let seller = null
+      if (productOnly.seller_id) {
+        const { data: sellerData, error: sellerError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", productOnly.seller_id)
+          .single()
+          
+        if (!sellerError) {
+          seller = sellerData
+        } else {
+          console.error("Error fetching seller:", sellerError)
+        }
+      }
+      
+      // Return product with separately fetched seller if available
+      return {
+        id: productOnly.id,
+        name: productOnly.name,
+        price: productOnly.price,
+        description: productOnly.description,
+        categoryId: productOnly.category_id,
+        condition: productOnly.condition,
+        images: productOnly.images,
+        tags: productOnly.tags,
+        isNegotiable: productOnly.is_negotiable,
+        isUrgent: productOnly.is_urgent,
+        sellerId: productOnly.seller_id,
+        createdAt: productOnly.created_at,
+        updatedAt: productOnly.updated_at,
+        featured: productOnly.featured,
+        seller: seller
+          ? {
+              id: seller.id,
+              email: seller.email,
+              firstName: seller.first_name,
+              lastName: seller.last_name,
+              role: seller.role,
+              isVerified: seller.is_verified,
+              profilePicture: seller.profile_picture,
+              createdAt: seller.created_at,
+              rating: seller.rating,
+            }
+          : undefined,
+      }
     }
 
     return {
@@ -720,7 +779,7 @@ export const getConversations = async (userId: string): Promise<Conversation[]> 
           id, conversation_id, sender_id, text, timestamp, read
         )
       `)
-      .contains("participants", [userId])
+      .or(`user_id.eq.${userId},other_user_id.eq.${userId}`)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -733,12 +792,12 @@ export const getConversations = async (userId: string): Promise<Conversation[]> 
     const conversationsWithDetails = await Promise.all(
       data.map(async (conversation) => {
         // Find the other user in the conversation
-        const otherUserId = conversation.participants.find((id: string) => id !== userId)
+        const otherUserId = conversation.user_id === userId ? conversation.other_user_id : conversation.user_id
         let otherUser = null
 
         if (otherUserId) {
           const { data: userData, error: userError } = await supabase
-            .from("users")
+            .from("profiles") // Changed from users to profiles
             .select("*")
             .eq("id", otherUserId)
             .single()
@@ -799,9 +858,12 @@ export const getConversations = async (userId: string): Promise<Conversation[]> 
           unreadCount = sortedMessages.filter((msg) => msg.sender_id !== userId && !msg.read).length
         }
 
+        // Create participants array for API compatibility
+        const participants = [conversation.user_id, conversation.other_user_id]
+
         return {
           id: conversation.id,
-          participants: conversation.participants,
+          participants: participants,
           otherUser: otherUser,
           lastMessage,
           unreadCount,
@@ -831,8 +893,12 @@ export const getConversationById = async (id: string): Promise<Conversation | nu
     }
 
     // Get the other user details
-    const otherUserId = data.participants[0] // This is simplified, you'd need to know the current user
-    const { data: userData, error: userError } = await supabase.from("users").select("*").eq("id", otherUserId).single()
+    const otherUserId = data.other_user_id // Using the explicit column instead of array access
+    const { data: userData, error: userError } = await supabase
+      .from("profiles") // Changed from users to profiles
+      .select("*")
+      .eq("id", otherUserId)
+      .single()
 
     if (userError) {
       console.error("Error fetching other user:", userError)
@@ -892,9 +958,12 @@ export const getConversationById = async (id: string): Promise<Conversation | nu
       console.error("Error counting unread messages:", countError)
     }
 
+    // Construct participants array for API compatibility
+    const participants = [data.user_id, data.other_user_id]
+
     return {
       id: data.id,
-      participants: data.participants,
+      participants: participants,
       otherUser: userData
         ? {
             id: userData.id,
@@ -996,13 +1065,18 @@ export const createConversation = async (
     const { data: existingConversations, error: checkError } = await supabase
       .from("conversations")
       .select("*")
-      .contains("participants", [userId, otherUserId])
+      .or(`user_id.eq.${userId},other_user_id.eq.${userId}`)
+      .or(`user_id.eq.${otherUserId},other_user_id.eq.${otherUserId}`)
 
     if (checkError) {
       console.error("Error checking existing conversations:", checkError)
     } else if (existingConversations && existingConversations.length > 0) {
       // If a conversation exists with the same product, return it
-      const existingConversation = existingConversations.find((c) => c.product_id === productId)
+      const existingConversation = existingConversations.find((c) => 
+        c.product_id === productId && 
+        ((c.user_id === userId && c.other_user_id === otherUserId) || 
+         (c.user_id === otherUserId && c.other_user_id === userId))
+      )
       if (existingConversation) {
         // Return the existing conversation
         return (await getConversationById(existingConversation.id)) as Conversation
@@ -1013,7 +1087,8 @@ export const createConversation = async (
     const { data, error } = await supabase
       .from("conversations")
       .insert({
-        participants: [userId, otherUserId],
+        user_id: userId,
+        other_user_id: otherUserId,
         product_id: productId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -1027,7 +1102,11 @@ export const createConversation = async (
     }
 
     // Get the other user details
-    const { data: userData, error: userError } = await supabase.from("users").select("*").eq("id", otherUserId).single()
+    const { data: userData, error: userError } = await supabase
+      .from("profiles") // Changed from users to profiles
+      .select("*")
+      .eq("id", otherUserId)
+      .single()
 
     if (userError) {
       console.error("Error fetching other user:", userError)
@@ -1052,9 +1131,12 @@ export const createConversation = async (
       }
     }
 
+    // Construct participants array for API compatibility with the frontend
+    const participants = [userId, otherUserId]
+
     return {
       id: data.id,
-      participants: data.participants,
+      participants: participants,
       otherUser: userData
         ? {
             id: userData.id,

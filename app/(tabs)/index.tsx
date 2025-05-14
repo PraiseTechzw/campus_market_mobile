@@ -96,7 +96,7 @@ export default function HomeScreen() {
         .select(
           `
           *,
-          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+          seller:seller_id (id, first_name, last_name, profile_picture, is_verified)
         `
         )
         .eq("isActive", true)
@@ -118,7 +118,7 @@ export default function HomeScreen() {
         .select(
           `
           *,
-          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+          seller:seller_id (id, first_name, last_name, profile_picture, is_verified)
         `
         )
         .eq("isActive", true)
@@ -126,7 +126,7 @@ export default function HomeScreen() {
         .limit(10),
   });
 
-  // Fetch trending products (based on view count)
+  // Fetch trending products (based on view count or recency if viewCount doesn't exist)
   const {
     data: trendingProducts,
     loading: trendingLoading,
@@ -139,11 +139,11 @@ export default function HomeScreen() {
         .select(
           `
           *,
-          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+          seller:seller_id (id, first_name, last_name, profile_picture, is_verified)
         `
         )
         .eq("isActive", true)
-        .order("viewCount", { ascending: false })
+        .order("createdAt", { ascending: false }) // Order by creation date as fallback
         .limit(6),
   });
 
@@ -160,11 +160,11 @@ export default function HomeScreen() {
         .select(
           `
           *,
-          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+          seller:seller_id (id, first_name, last_name, profile_picture, is_verified)
         `
         )
         .eq("isActive", true)
-        .eq("location", userLocation || "Nearby Campus")
+        .eq("campus", userLocation || "Nearby Campus")
         .limit(6),
   });
 
@@ -177,18 +177,18 @@ export default function HomeScreen() {
     key: "recommended_products",
     query: () => {
       // Only fetch recommendations if user is logged in
-      if (!user) return { data: null };
+      if (!user) return supabase.from("products").select("*").limit(0);
       
       return supabase
         .from("products")
         .select(
           `
           *,
-          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
+          seller:seller_id (id, first_name, last_name, profile_picture, is_verified)
         `
         )
         .eq("isActive", true)
-        .not("sellerId", "eq", user.id) // Exclude user's own products
+        .not("seller_id", "eq", user.id)
         .limit(6);
     },
     enabled: !!user,

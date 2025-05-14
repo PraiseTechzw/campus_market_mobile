@@ -25,6 +25,7 @@ import { getProductById, createOrder, createConversation } from "@/services/api"
 import { queueOrderCreation } from "@/utils/sync-queue"
 import type { Product } from "@/types"
 import OfflineBanner from "@/components/offline-banner"
+import React from "react"
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams()
@@ -216,11 +217,15 @@ export default function ProductDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: product.images[activeImageIndex] || "/placeholder.svg?height=400&width=400" }}
+            source={{ 
+              uri: product.images && product.images.length > 0 
+                ? product.images[activeImageIndex] 
+                : "/placeholder.svg?height=400&width=400" 
+            }}
             style={styles.mainImage}
           />
 
-          {product.images.length > 1 && (
+          {product.images && product.images.length > 1 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -310,7 +315,7 @@ export default function ProductDetailScreen() {
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: Colors[colorScheme ?? "light"].textDim }]}>Category</Text>
               <Text style={[styles.detailValue, { color: Colors[colorScheme ?? "light"].text }]}>
-                {product.categoryId.charAt(0).toUpperCase() + product.categoryId.slice(1)}
+                {product.categoryId?.charAt(0).toUpperCase() + product.categoryId?.slice(1)}
               </Text>
             </View>
             <View style={styles.detailRow}>
@@ -328,7 +333,7 @@ export default function ProductDetailScreen() {
             </Text>
           </View>
 
-          {product.tags.length > 0 && (
+          {product.tags && product.tags.length > 0 && (
             <View style={styles.tagsContainer}>
               <Text style={[styles.tagsTitle, { color: Colors[colorScheme ?? "light"].text }]}>Tags</Text>
               <View style={styles.tagsList}>

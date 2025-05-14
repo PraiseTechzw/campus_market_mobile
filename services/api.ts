@@ -27,51 +27,110 @@ export const getCategories = async (): Promise<Category[]> => {
 // Products
 export const getProducts = async (): Promise<Product[]> => {
   try {
-    const { data, error } = await supabase
+    // Step 1: Fetch all products without join
+    const { data: products, error: productsError } = await supabase
       .from("products")
-      .select(`
-        *,
-        seller:seller_id (
-          id, email, first_name, last_name, role, is_verified, profile_picture, created_at, rating
-        )
-      `)
+      .select("*")
       .order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("Error fetching products:", error)
+    if (productsError) {
+      console.error("Error fetching products:", productsError)
       // Fallback to mock data
       return productsWithSellers
     }
 
-    return data.map((item) => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      description: item.description,
-      categoryId: item.category_id,
-      condition: item.condition,
-      images: item.images,
-      tags: item.tags,
-      isNegotiable: item.is_negotiable,
-      isUrgent: item.is_urgent,
-      sellerId: item.seller_id,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      featured: item.featured,
-      seller: item.seller
-        ? {
-            id: item.seller.id,
-            email: item.seller.email,
-            firstName: item.seller.first_name,
-            lastName: item.seller.last_name,
-            role: item.seller.role,
-            isVerified: item.seller.is_verified,
-            profilePicture: item.seller.profile_picture,
-            createdAt: item.seller.created_at,
-            rating: item.seller.rating,
+    // Step 2: Get all unique seller IDs to fetch in bulk
+    const sellerIds = [...new Set(products.map(product => product.seller_id).filter(Boolean))]
+    
+    // Step 3: Fetch all sellers in one batch query
+    const sellers: Record<string, any> = {}
+    
+    if (sellerIds.length > 0) {
+      try {
+        // Try profiles table first
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", sellerIds)
+        
+        if (!profilesError && profilesData) {
+          // Map sellers by ID for easy lookup
+          profilesData.forEach(seller => {
+            sellers[seller.id] = seller
+          })
+          
+          // Check if we got all sellers
+          const missingSellerIds = sellerIds.filter(id => !sellers[id])
+          
+          // If any sellers are missing, try users table as fallback
+          if (missingSellerIds.length > 0) {
+            const { data: usersData, error: usersError } = await supabase
+              .from("users")
+              .select("*")
+              .in("id", missingSellerIds)
+            
+            if (!usersError && usersData) {
+              usersData.forEach(user => {
+                sellers[user.id] = user
+              })
+            }
           }
-        : undefined,
-    }))
+        } else {
+          // If profiles query failed, try users table
+          console.error("Error fetching sellers from profiles:", profilesError)
+          
+          const { data: usersData, error: usersError } = await supabase
+            .from("users")
+            .select("*")
+            .in("id", sellerIds)
+          
+          if (!usersError && usersData) {
+            usersData.forEach(user => {
+              sellers[user.id] = user
+            })
+          } else {
+            console.error("Error fetching sellers from users:", usersError)
+          }
+        }
+      } catch (sellerFetchError) {
+        console.error("Error in bulk seller fetch:", sellerFetchError)
+      }
+    }
+    
+    // Step 4: Map products to include seller data
+    return products.map(product => {
+      const seller = product.seller_id ? sellers[product.seller_id] : null
+      
+      return {
+        id: product.id,
+        name: product.name,
+        price: product.price || 0,
+        description: product.description || "",
+        categoryId: product.category_id || "",
+        condition: product.condition || "used",
+        images: product.images || [],
+        tags: product.tags || [],
+        isNegotiable: product.is_negotiable || false,
+        isUrgent: product.is_urgent || false,
+        sellerId: product.seller_id || "",
+        createdAt: product.created_at || new Date().toISOString(),
+        updatedAt: product.updated_at || new Date().toISOString(),
+        featured: product.featured || false,
+        seller: seller
+          ? {
+              id: seller.id,
+              email: seller.email || "",
+              firstName: seller.first_name || "Unknown",
+              lastName: seller.last_name || "Seller",
+              role: seller.role || "user",
+              isVerified: seller.is_verified || false,
+              profilePicture: seller.profile_picture || null,
+              createdAt: seller.created_at || new Date().toISOString(),
+              rating: seller.rating || 0,
+            }
+          : undefined,
+      }
+    })
   } catch (error) {
     console.error("Error in getProducts:", error)
     // Fallback to mock data
@@ -81,108 +140,97 @@ export const getProducts = async (): Promise<Product[]> => {
 
 export const getProductById = async (id: string): Promise<Product | null> => {
   try {
-    // First try with the foreign key relationship
-    const { data, error } = await supabase
+    // APPROACH CHANGE: Don't use join queries at all - fetch product and seller separately
+    
+    // Step 1: Fetch just the basic product data
+    const { data: product, error: productError } = await supabase
       .from("products")
-      .select(`
-        *,
-        seller:seller_id (
-          id, email, first_name, last_name, role, is_verified, profile_picture, created_at, rating
-        )
-      `)
+      .select("*")
       .eq("id", id)
       .single()
-
-    if (error) {
-      console.error("Error fetching product with seller relationship:", error)
       
-      // If the relationship query fails, try fetching just the product
-      const { data: productOnly, error: productError } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", id)
-        .single()
-        
-      if (productError) {
-        console.error("Error fetching product:", productError)
-        // Fallback to mock data as last resort
-        return productsWithSellers.find((p) => p.id === id) || null
-      }
-      
-      // If we have the product but not the seller relationship, fetch seller separately
-      let seller = null
-      if (productOnly.seller_id) {
+    if (productError) {
+      console.error("Error fetching product:", productError)
+      // Fallback to mock data as last resort
+      return productsWithSellers.find((p) => p.id === id) || null
+    }
+    
+    // Step 2: Fetch seller data separately
+    let seller = null
+    if (product.seller_id) {
+      try {
+        // Try to get seller from profiles table
         const { data: sellerData, error: sellerError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", productOnly.seller_id)
-          .single()
+          .eq("id", product.seller_id)
+          .maybeSingle() // Use maybeSingle to handle case when seller might not exist
           
-        if (!sellerError) {
+        if (!sellerError && sellerData) {
           seller = sellerData
         } else {
-          console.error("Error fetching seller:", sellerError)
+          console.error("Error fetching seller from profiles:", sellerError)
+          
+          // Try users table as fallback if profiles failed
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", product.seller_id)
+            .maybeSingle()
+            
+          if (!userError && userData) {
+            seller = userData
+          } else {
+            console.error("Error fetching seller from users:", userError)
+            
+            // Final fallback - create minimal seller object
+            seller = {
+              id: product.seller_id,
+              first_name: "Unknown",
+              last_name: "Seller",
+              is_verified: false
+            }
+          }
+        }
+      } catch (sellerFetchError) {
+        console.error("Error in seller fetch process:", sellerFetchError)
+        // Create minimal seller info for UI display
+        seller = {
+          id: product.seller_id,
+          first_name: "Unknown",
+          last_name: "Seller",
+          is_verified: false
         }
       }
-      
-      // Return product with separately fetched seller if available
-      return {
-        id: productOnly.id,
-        name: productOnly.name,
-        price: productOnly.price,
-        description: productOnly.description,
-        categoryId: productOnly.category_id,
-        condition: productOnly.condition,
-        images: productOnly.images,
-        tags: productOnly.tags,
-        isNegotiable: productOnly.is_negotiable,
-        isUrgent: productOnly.is_urgent,
-        sellerId: productOnly.seller_id,
-        createdAt: productOnly.created_at,
-        updatedAt: productOnly.updated_at,
-        featured: productOnly.featured,
-        seller: seller
-          ? {
-              id: seller.id,
-              email: seller.email,
-              firstName: seller.first_name,
-              lastName: seller.last_name,
-              role: seller.role,
-              isVerified: seller.is_verified,
-              profilePicture: seller.profile_picture,
-              createdAt: seller.created_at,
-              rating: seller.rating,
-            }
-          : undefined,
-      }
     }
-
+    
+    // Step 3: Return combined product object
     return {
-      id: data.id,
-      name: data.name,
-      price: data.price,
-      description: data.description,
-      categoryId: data.category_id,
-      condition: data.condition,
-      images: data.images,
-      tags: data.tags,
-      isNegotiable: data.is_negotiable,
-      isUrgent: data.is_urgent,
-      sellerId: data.seller_id,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      featured: data.featured,
-      seller: data.seller
+      id: product.id,
+      name: product.name,
+      price: product.price || 0,
+      description: product.description || "",
+      categoryId: product.category_id || "",
+      condition: product.condition || "used",
+      images: product.images || [],
+      tags: product.tags || [],
+      isNegotiable: product.is_negotiable || false,
+      isUrgent: product.is_urgent || false,
+      sellerId: product.seller_id || "",
+      createdAt: product.created_at || new Date().toISOString(),
+      updatedAt: product.updated_at || new Date().toISOString(),
+      featured: product.featured || false,
+      seller: seller
         ? {
-            id: data.seller.id,
-            email: data.seller.email,
-            firstName: data.seller.first_name,
-            lastName: data.seller.last_name,
-            role: data.seller.role,
-            isVerified: data.seller.is_verified,
-            profilePicture: data.seller.profile_picture,
-            createdAt: data.seller.created_at,
-            rating: data.seller.rating,
+            id: seller.id,
+            email: seller.email || "",
+            firstName: seller.first_name || "Unknown",
+            lastName: seller.last_name || "Seller",
+            role: seller.role || "user",
+            isVerified: seller.is_verified || false,
+            profilePicture: seller.profile_picture || null,
+            createdAt: seller.created_at || new Date().toISOString(),
+            rating: seller.rating || 0,
           }
         : undefined,
     }
@@ -195,49 +243,93 @@ export const getProductById = async (id: string): Promise<Product | null> => {
 
 export const getUserProducts = async (userId: string): Promise<Product[]> => {
   try {
-    const { data, error } = await supabase
+    // Fetch products for this user without using joins
+    const { data: products, error: productsError } = await supabase
       .from("products")
-      .select(`
-        *,
-        seller:seller_id (
-          id, email, first_name, last_name, role, is_verified, profile_picture, created_at, rating
-        )
-      `)
+      .select("*")
       .eq("seller_id", userId)
       .order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("Error fetching user products:", error)
+    if (productsError) {
+      console.error("Error fetching user products:", productsError)
       // Fallback to mock data
       return productsWithSellers.filter((p) => p.sellerId === userId)
     }
 
-    return data.map((item) => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      description: item.description,
-      categoryId: item.category_id,
-      condition: item.condition,
-      images: item.images,
-      tags: item.tags,
-      isNegotiable: item.is_negotiable,
-      isUrgent: item.is_urgent,
-      sellerId: item.seller_id,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      featured: item.featured,
-      seller: item.seller
+    // Fetch the seller (user) information
+    let seller = null
+    try {
+      // Try profiles table first
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle()
+      
+      if (!profileError && profileData) {
+        seller = profileData
+      } else {
+        console.error("Error fetching seller from profiles:", profileError)
+        
+        // Try users table as fallback
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle()
+        
+        if (!userError && userData) {
+          seller = userData
+        } else {
+          console.error("Error fetching seller from users:", userError)
+          
+          // Create minimal seller object for fallback
+          seller = {
+            id: userId,
+            first_name: "Unknown",
+            last_name: "Seller",
+            is_verified: false
+          }
+        }
+      }
+    } catch (sellerFetchError) {
+      console.error("Error in seller fetch process:", sellerFetchError)
+      // Minimal seller object
+      seller = {
+        id: userId,
+        first_name: "Unknown",
+        last_name: "Seller",
+        is_verified: false
+      }
+    }
+
+    // Map products with seller information
+    return products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      price: product.price || 0,
+      description: product.description || "",
+      categoryId: product.category_id || "",
+      condition: product.condition || "used",
+      images: product.images || [],
+      tags: product.tags || [],
+      isNegotiable: product.is_negotiable || false,
+      isUrgent: product.is_urgent || false,
+      sellerId: product.seller_id || "",
+      createdAt: product.created_at || new Date().toISOString(),
+      updatedAt: product.updated_at || new Date().toISOString(),
+      featured: product.featured || false,
+      seller: seller
         ? {
-            id: item.seller.id,
-            email: item.seller.email,
-            firstName: item.seller.first_name,
-            lastName: item.seller.last_name,
-            role: item.seller.role,
-            isVerified: item.seller.is_verified,
-            profilePicture: item.seller.profile_picture,
-            createdAt: item.seller.created_at,
-            rating: item.seller.rating,
+            id: seller.id,
+            email: seller.email || "",
+            firstName: seller.first_name || "Unknown",
+            lastName: seller.last_name || "Seller",
+            role: seller.role || "user",
+            isVerified: seller.is_verified || false,
+            profilePicture: seller.profile_picture || null,
+            createdAt: seller.created_at || new Date().toISOString(),
+            rating: seller.rating || 0,
           }
         : undefined,
     }))

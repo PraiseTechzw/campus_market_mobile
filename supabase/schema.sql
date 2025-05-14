@@ -297,7 +297,7 @@ BEGIN
   -- Extract name data from metadata, defaulting to empty string if not present
   first_name := COALESCE(NEW.raw_user_meta_data->>'first_name', '');
   last_name := COALESCE(NEW.raw_user_meta_data->>'last_name', '');
-  full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', first_name || ' ' || last_name);
+  full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NULLIF(TRIM(first_name || ' ' || last_name), ''));
   
   -- Insert the new profile
   INSERT INTO profiles (
@@ -306,6 +306,10 @@ BEGIN
     first_name,
     last_name,
     full_name,
+    phone,
+    avatar_url,
+    bio,
+    rating,
     is_verified,
     is_seller,
     role,
@@ -313,10 +317,14 @@ BEGIN
     updated_at
   ) VALUES (
     NEW.id,
-    NEW.email,
+    COALESCE(NEW.email, ''),
     first_name,
     last_name,
     full_name,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
     FALSE,
     FALSE,
     'student',
@@ -327,10 +335,20 @@ BEGIN
   -- Create default user settings
   INSERT INTO user_settings (
     id,
+    notification_preferences,
+    theme,
+    language,
+    currency,
+    privacy_settings,
     created_at,
     updated_at
   ) VALUES (
     NEW.id,
+    '{"email": true, "push": true, "messages": true, "orders": true, "marketing": false}'::JSONB,
+    'system',
+    'en',
+    'USD',
+    '{"show_email": false, "show_phone": false, "show_activity": true}'::JSONB,
     NOW(),
     NOW()
   );

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import type { Session, User, AuthError } from "@supabase/supabase-js"
+import type { Session, User, AuthError, AuthResponse } from "@supabase/supabase-js"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as Linking from "expo-linking"
 import { router } from "expo-router"
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Handle deep links for auth flows
   useEffect(() => {
-    const handleDeepLink = async (event: Linking.EventType) => {
+    const handleDeepLink = async (event: { url: string; type: string }) => {
       if (event.url.includes("type=recovery") || event.url.includes("type=signup")) {
         // Extract the token from the URL
         const params = new URLSearchParams(event.url.split("#")[1])
@@ -235,18 +235,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, loading: true }))
 
     try {
-      // Create auth user with Supabase
+      // Create auth user with Supabase - using the format expected by the trigger
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${DEEP_LINK_PREFIX}auth/callback?type=signup`,
           data: {
-            first_name: userData.firstName || userData.first_name,
-            last_name: userData.lastName || userData.last_name,
+            first_name: userData.firstName || userData.first_name || '',
+            last_name: userData.lastName || userData.last_name || '',
             full_name: `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
           },
-        },
+        } as any, // Type assertion to resolve the linter error
       })
 
       if (error) {
@@ -261,9 +261,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           text1: "Account Created",
           text2: "Please check your email to verify your account.",
         })
-
-        // Note: Profile and user_settings creation is handled by the database trigger
-        // The profiles table has a trigger that creates entries when a new auth.users record is created
       }
     } catch (error) {
       console.error("Error during signup:", error)
@@ -506,7 +503,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         handleAuthError(error)
       }
 
-      if (data.session) {
+      if (data && data.session) {
         setState((prev) => ({
           ...prev,
           session: data.session,

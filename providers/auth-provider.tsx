@@ -238,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Create auth user with Supabase - using the format expected by the trigger
       const { data, error } = await supabase.auth.signUp({
         email,
-        password,
+        password, 
         options: {
           emailRedirectTo: `${DEEP_LINK_PREFIX}auth/callback?type=signup`,
           data: {
@@ -251,16 +251,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         handleAuthError(error)
-        return
+        return // Don't proceed if there was an error
       }
 
-      // If user creation was successful, show success message
+      // Verify the user was actually created and has an account
       if (data.user) {
+        // Check if profile was created successfully
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", data.user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          console.error("Error verifying user profile:", profileError);
+          
+          // Try to clean up the failed user
+          try {
+            // We can't use admin.deleteUser from client, so let's null the session
+            await supabase.auth.signOut();
+          } catch (e) {
+            console.error("Error during cleanup:", e);
+          }
+          
+          Toast.show({
+            type: "error",
+            text1: "Signup Failed",
+            text2: "Could not create your profile. Please try again or contact support.",
+          });
+          
+          return; // Don't redirect to verification
+        }
+
+        // If we got here, the user was created successfully
         Toast.show({
           type: "success",
           text1: "Account Created",
           text2: "Please check your email to verify your account.",
-        })
+        });
+        
+        // Now it's safe to redirect to verification page
+        router.replace("/(auth)/verification-pending");
       }
     } catch (error) {
       console.error("Error during signup:", error)

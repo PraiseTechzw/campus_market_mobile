@@ -40,11 +40,23 @@ export default function VerificationPendingScreen() {
   const checkmarkScale = useSharedValue(0)
 
   useEffect(() => {
+    // Check if user exists, if not redirect to login
+    if (!user) {
+      Toast.show({
+        type: 'error',
+        text1: 'Session Error',
+        text2: 'Please sign in again to continue.',
+        position: 'bottom',
+      });
+      router.replace("/(auth)/login");
+      return;
+    }
+    
     // Check if user is verified and redirect if true
-    if (user?.email_confirmed_at) {
+    if (user.email_confirmed_at) {
       router.replace("/(auth)/preferences")
     }
-  }, [user?.email_confirmed_at])
+  }, [user, user?.email_confirmed_at])
 
   useEffect(() => {
     // Start continuous animation for the envelope

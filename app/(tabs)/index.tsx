@@ -28,6 +28,7 @@ import React from "react";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function HomeScreen() {
   const { colors } = useTheme();
@@ -439,10 +440,10 @@ export default function HomeScreen() {
   };
 
   const renderWelcomeSection = () => (
-    <View style={styles.welcomeSection}>
+    <View style={[styles.welcomeSection, { backgroundColor: colors.background }]}>
       <Text style={[styles.welcomeText, { color: colors.text }]}>
         {user
-          ? `Welcome back, ${profile?.full_name}!`
+          ? `Welcome back, ${profile?.full_name || ""}!`
           : "Welcome to Campus Market!"}
       </Text>
       <View style={styles.searchContainer}>
@@ -458,9 +459,14 @@ export default function HomeScreen() {
 
   const renderCategoriesSection = () => (
     <View style={styles.sectionContainer}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        Categories
-      </Text>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleContainer}>
+          <Ionicons name="grid" size={22} color={colors.tint} style={styles.sectionIcon} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Categories
+          </Text>
+        </View>
+      </View>
       <CategoryList
         categories={categories || []}
         selectedCategoryId={null}
@@ -475,13 +481,20 @@ export default function HomeScreen() {
       style={[styles.sectionContainer, { backgroundColor: colors.background }]}
     >
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Featured Items
-        </Text>
-        <TouchableOpacity onPress={() => router.push("/marketplace")}>
+        <View style={styles.sectionTitleContainer}>
+          <Ionicons name="star" size={22} color={colors.tint} style={styles.sectionIcon} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Featured Items
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.seeAllButton} 
+          onPress={() => router.push("/marketplace")}
+        >
           <Text style={[styles.seeAllText, { color: colors.tint }]}>
             See All
           </Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.tint} />
         </TouchableOpacity>
       </View>
 
@@ -499,7 +512,7 @@ export default function HomeScreen() {
               style={styles.featuredProductCard}
             />
           )}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => `featured-${item.id}`}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.featuredList}
@@ -537,13 +550,20 @@ export default function HomeScreen() {
       style={[styles.sectionContainer, { backgroundColor: colors.background }]}
     >
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Recent Items
-        </Text>
-        <TouchableOpacity onPress={() => router.push("/marketplace")}>
+        <View style={styles.sectionTitleContainer}>
+          <Ionicons name="time" size={22} color={colors.tint} style={styles.sectionIcon} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Recent Items
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.seeAllButton}
+          onPress={() => router.push("/marketplace")}
+        >
           <Text style={[styles.seeAllText, { color: colors.tint }]}>
             See All
           </Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.tint} />
         </TouchableOpacity>
       </View>
 
@@ -574,6 +594,7 @@ export default function HomeScreen() {
             <Button
               title="View More"
               variant="outline"
+              icon="eye-outline"
               onPress={() => router.push("/marketplace")}
               style={styles.viewMoreButton}
             />
@@ -591,7 +612,12 @@ export default function HomeScreen() {
 
   const renderSellSection = () => (
     <Card variant="elevated" style={styles.sellCard}>
-      <View style={styles.sellCardContent}>
+      <LinearGradient
+        colors={['rgba(44, 182, 125, 0.1)', 'rgba(44, 182, 125, 0.2)']}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
+        style={styles.sellCardContent}
+      >
         <View style={styles.sellCardTextContainer}>
           <Text style={[styles.sellCardTitle, { color: colors.text }]}>
             Have something to sell?
@@ -605,7 +631,7 @@ export default function HomeScreen() {
           icon="add-circle-outline"
           onPress={() => router.push("/sell")}
         />
-      </View>
+      </LinearGradient>
     </Card>
   );
 
@@ -740,6 +766,22 @@ export default function HomeScreen() {
   const renderUserActivitySection = () => {
     if (!user) return null;
     
+    const badgeContainerStyle = {
+      position: "absolute" as const,
+      top: 0,
+      right: 0,
+      backgroundColor: "#4CAF50", // Green
+      borderRadius: 10,
+      padding: 2,
+    };
+    
+    const badgeTextStyle = {
+      fontSize: 12,
+      fontWeight: "bold" as const,
+      fontFamily: "Poppins-Bold",
+      color: "#FFFFFF", // White
+    };
+    
     return (
       <Card variant="elevated" style={styles.activityCard}>
         <Text style={[styles.activityTitle, { color: colors.text }]}>
@@ -783,8 +825,8 @@ export default function HomeScreen() {
             <View style={[styles.activityIconContainer, { backgroundColor: colors.neutral2 }]}>
               <Ionicons name="chatbubble-outline" size={22} color={colors.warning} />
               {userActivities.messages > 0 && (
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeText}>{userActivities.messages}</Text>
+                <View style={badgeContainerStyle}>
+                  <Text style={badgeTextStyle}>{userActivities.messages}</Text>
                 </View>
               )}
             </View>
@@ -1036,13 +1078,20 @@ export default function HomeScreen() {
     return (
       <View style={[styles.sectionContainer, { backgroundColor: colors.background }]}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Trending Now
-          </Text>
-          <TouchableOpacity onPress={() => router.push("/marketplace?trending=true")}>
+          <View style={styles.sectionTitleContainer}>
+            <Ionicons name="trending-up" size={22} color={colors.tint} style={styles.sectionIcon} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Trending Now
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.seeAllButton}
+            onPress={() => router.push("/marketplace?trending=true")}
+          >
             <Text style={[styles.seeAllText, { color: colors.tint }]}>
               See All
             </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.tint} />
           </TouchableOpacity>
         </View>
 
@@ -1081,6 +1130,9 @@ export default function HomeScreen() {
       <View style={styles.container}>
         {renderWelcomeSection()}
 
+        {/* Search History */}
+        {searchHistory.length > 0 && renderSearchHistorySection()}
+        
         {/* Banner Carousel */}
         {bannersLoading ? (
           <View style={[styles.bannerPlaceholder, { backgroundColor: colors.neutral2 }]}>
@@ -1094,21 +1146,47 @@ export default function HomeScreen() {
           />
         ) : null}
 
-        {renderCategoriesSection()}
-        {renderFeaturedSection()}
-        {renderPromotionalBanner()}
-        {renderRecentSection()}
-        {renderSellSection()}
-        {renderRecommendationsSection()}
-        {renderRecentlyViewedSection()}
-        {renderSavedItemsSection()}
-        {renderUserActivitySection()}
-        {renderNotificationsSection()}
+        {/* Quick Filters */}
         {renderQuickFiltersSection()}
-        {renderDealsSection()}
-        {renderNearbyItemsSection()}
-        {renderSearchHistorySection()}
+
+        {/* Categories */}
+        {renderCategoriesSection()}
+        
+        {/* User Activity Dashboard for logged in users */}
+        {user && renderUserActivitySection()}
+        
+        {/* Trending Now */}
         {renderTrendingSection()}
+
+        {/* Featured Items */}
+        {renderFeaturedSection()}
+        
+        {/* Deals & Discounts */}
+        {dealsProducts && dealsProducts.length > 0 && renderDealsSection()}
+        
+        {/* Promotional Banner */}
+        {renderPromotionalBanner()}
+        
+        {/* Personalized Recommendations */}
+        {recommendedProducts && recommendedProducts.length > 0 && renderRecommendationsSection()}
+        
+        {/* Items Near You */}
+        {nearbyItems && nearbyItems.length > 0 && renderNearbyItemsSection()}
+        
+        {/* Recently Viewed */}
+        {recentlyViewed.length > 0 && renderRecentlyViewedSection()}
+        
+        {/* Recent Items */}
+        {renderRecentSection()}
+        
+        {/* Wishlist */}
+        {savedItems.length > 0 && renderSavedItemsSection()}
+        
+        {/* Notifications */}
+        {notifications.length > 0 && renderNotificationsSection()}
+        
+        {/* Sell Section */}
+        {renderSellSection()}
       </View>
     </ScreenContainer>
   );
@@ -1122,9 +1200,17 @@ const styles = StyleSheet.create({
   welcomeSection: {
     padding: 24,
     paddingTop: 32,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 16,
   },
   welcomeText: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "bold",
     fontFamily: "Poppins-Bold",
     marginBottom: 18,
@@ -1141,6 +1227,10 @@ const styles = StyleSheet.create({
   },
   sectionContainer: {
     marginTop: 24,
+    marginHorizontal: 12,
+    borderRadius: 24,
+    overflow: 'hidden',
+    paddingVertical: 12,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1149,14 +1239,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 14,
   },
+  sectionTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sectionIcon: {
+    marginRight: 8,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "bold",
     fontFamily: "Poppins-SemiBold",
   },
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: 'transparent',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
   seeAllText: {
     fontSize: 15,
     fontFamily: "Poppins-Regular",
+    marginRight: 4,
   },
   featuredList: {
     paddingHorizontal: 12,
@@ -1169,11 +1275,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 8,
+    marginBottom: 8,
   },
   productCardContainer: {
     width: '50%', 
     padding: 8,
-    marginBottom: 8,
+    marginBottom: 16,
     minHeight: 320,
   },
   recentProductCard: {
@@ -1181,29 +1288,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: 'transparent',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   viewMoreButton: {
     marginHorizontal: 20,
     marginTop: 12,
-    marginBottom: 6,
-  },
-  loader: {
-    padding: 24,
-  },
-  emptyCard: {
-    marginHorizontal: 20,
-    alignItems: "center",
-    padding: 32,
-    borderRadius: 18,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 1,
-  },
-  emptyText: {
-    fontSize: 15,
-    fontFamily: "Poppins-Regular",
+    marginBottom: 16,
+    borderRadius: 16,
+    paddingVertical: 12,
   },
   sellCard: {
     margin: 20,
@@ -1215,7 +1311,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 3,
+    elevation: 5,
   },
   sellCardContent: {
     flexDirection: "row",
@@ -1223,6 +1319,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 24,
     borderRadius: 22,
+    backgroundColor: 'rgba(44, 182, 125, 0.1)', // Light tint color background
   },
   sellCardTextContainer: {
     flex: 1,
@@ -1251,10 +1348,10 @@ const styles = StyleSheet.create({
     padding: 0,
     backgroundColor: "transparent",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 5,
   },
   activityTitle: {
     fontSize: 20,
@@ -1290,20 +1387,6 @@ const styles = StyleSheet.create({
   activityLabel: {
     fontSize: 15,
     fontFamily: "Poppins-Regular",
-  },
-  badgeContainer: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: "#4CAF50", // Green
-    borderRadius: 10,
-    padding: 2,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    fontFamily: "Poppins-Bold",
-    color: "#FFFFFF", // White
   },
   notificationsCard: {
     margin: 20,
@@ -1343,18 +1426,18 @@ const styles = StyleSheet.create({
   },
   quickFiltersContainer: {
     margin: 20,
+    padding: 16,
     borderRadius: 22,
     overflow: "hidden",
-    padding: 0,
     backgroundColor: "transparent",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
   },
   quickFiltersContent: {
-    padding: 24,
+    paddingVertical: 8,
   },
   quickFilterItem: {
     flexDirection: 'row',
@@ -1362,6 +1445,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 18,
     marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   quickFilterIcon: {
     width: 40,
@@ -1408,5 +1496,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Poppins-Regular",
     marginLeft: 6,
+  },
+  sellButton: {
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  loader: {
+    padding: 24,
+  },
+  emptyCard: {
+    marginHorizontal: 20,
+    alignItems: "center",
+    padding: 32,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  emptyText: {
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+  },
+  badgeContainer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: "#4CAF50", // Green
+    borderRadius: 10,
+    padding: 2,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    fontFamily: "Poppins-Bold",
+    color: "#FFFFFF", // White
   },
 });

@@ -21,6 +21,7 @@
     "@react-native-picker/picker": "^2.11.0",
     "@react-navigation/native": "^7.1.9",
     "@supabase/supabase-js": "^2.49.4",
+    "@tanstack/react-query": "^5.76.1",
     "date-fns": "^4.1.0",
     "expo": "~53.0.9",
     "expo-blur": "^14.1.4",

@@ -1,574 +1,287 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native"
-import { router } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { useColorScheme } from "react-native"
-import * as ImagePicker from "expo-image-picker"
-import { Ionicons, MaterialIcons } from "@expo/vector-icons"
+import { useState } from "react"
+import { StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native"
+import { Text, View } from "@/components/themed"
+import { useSession } from "@/providers/session-provider"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
-import { useNetwork } from "@/providers/network-provider"
-import { useAuth } from "@/providers/auth-provider"
-import { getUserProducts, getUserOrders } from "@/services/api"
-import { getLocalUserProducts, getLocalUserOrders } from "@/utils/storage"
-import type { Product, Order } from "@/types"
-import OfflineBanner from "@/components/offline-banner"
-import ProductCard from "@/components/product-card"
-import OrderCard from "@/components/order-card"
-import { compressImage } from "@/utils/image-utils"
-import React from "react"
+import { useRouter } from "expo-router"
+import { supabase } from "@/lib/supabase"
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
+import * as ImagePicker from "expo-image-picker"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { getUserProfile, updateUserProfile } from "@/services/profile"
+import { Switch } from "react-native"
+import { useTheme } from "@/components/theme-provider"
 
 export default function ProfileScreen() {
+  const { session, signOut } = useSession()
   const colorScheme = useColorScheme()
-  const { isConnected } = useNetwork()
-  const { user, signOut, profile, updateProfile } = useAuth()
-  const [activeTab, setActiveTab] = useState<"listings" | "orders">("listings")
-  const [userProducts, setUserProducts] = useState<Product[]>([])
-  const [userOrders, setUserOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [updatingProfile, setUpdatingProfile] = useState(false)
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { theme, setTheme } = useTheme()
+  const [uploading, setUploading] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      loadUserData()
-    } else {
-      setLoading(false)
-    }
-  }, [user, isConnected, activeTab])
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => getUserProfile(),
+    enabled: !!session,
+  })
 
-  const loadUserData = async () => {
-    if (!user) return
+  const updateProfileMutation = useMutation({
+    mutationFn: updateUserProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] })
+    },
+  })
 
-    setLoading(true)
-    try {
-      if (activeTab === "listings") {
-        if (isConnected) {
-          // Online mode - fetch from API
-          const products = await getUserProducts(user.id)
-          setUserProducts(products)
-        } else {
-          // Offline mode - load from local storage
-          const localProducts = await getLocalUserProducts(user.id)
-          setUserProducts(localProducts)
-        }
-      } else {
-        if (isConnected) {
-          // Online mode - fetch from API
-          const orders = await getUserOrders(user.id)
-          setUserOrders(orders)
-        } else {
-          // Offline mode - load from local storage
-          const localOrders = await getLocalUserOrders(user.id)
-          setUserOrders(localOrders)
-        }
-      }
-    } catch (error) {
-      console.error("Error loading user data:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const onRefresh = async () => {
-    setRefreshing(true)
-    await loadUserData()
-    setRefreshing(false)
-  }
-
-  const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
+  const handleSignOut = async () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Logout",
+        text: "Sign Out",
         style: "destructive",
-        onPress: () => {
-          signOut()
-          router.replace("/")
+        onPress: async () => {
+          await signOut()
+          router.replace("/(auth)/login")
         },
       },
     ])
   }
 
-  const pickProfileImage = async () => {
-    if (!profile) return
+  const pickImage = async () => {
+    try {
+      setUploading(true)
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    })
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri
+        const fileExt = uri.split(".").pop()
+        const fileName = `${session?.user.id}-${Date.now()}.${fileExt}`
+        const filePath = `avatars/${fileName}`
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setUpdatingProfile(true)
-      try {
-        const compressed = await compressImage(result.assets[0].uri)
-        await updateProfile({ ...profile, profilePicture: compressed })
-        Alert.alert("Success", "Profile picture updated successfully")
-      } catch (error) {
-        console.error("Error updating profile picture:", error)
-        Alert.alert("Error", "Failed to update profile picture")
-      } finally {
-        setUpdatingProfile(false)
+        // Convert image to blob
+        const response = await fetch(uri)
+        const blob = await response.blob()
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage.from("profiles").upload(filePath, blob)
+
+        if (uploadError) {
+          throw uploadError
+        }
+
+        // Get public URL
+        const { data } = supabase.storage.from("profiles").getPublicUrl(filePath)
+
+        // Update profile with new avatar URL
+        if (data) {
+          updateProfileMutation.mutate({
+            avatar_url: data.publicUrl,
+          })
+        }
       }
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      Alert.alert("Error", "An error occurred while uploading your image.")
+    } finally {
+      setUploading(false)
     }
   }
 
-  const handleVerifyAccount = () => {
-    if (!profile) return
-
-    if (profile.isVerified) {
-      Alert.alert("Already Verified", "Your account is already verified")
-    } else {
-      router.push("/profile/verify")
-    }
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
   }
 
-  const renderNotLoggedIn = () => (
-    <View style={styles.notLoggedInContainer}>
-      <MaterialIcons name="account-circle" size={80} color={Colors[colorScheme ?? "light"].textDim} />
-      <Text style={[styles.notLoggedInText, { color: Colors[colorScheme ?? "light"].text }]}>
-        You need to be logged in to view your profile
-      </Text>
-      <TouchableOpacity
-        style={[styles.loginButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
-        onPress={() => router.push("/(auth)/login")}
-      >
-        <Text style={styles.loginButtonText}>Log In</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.signupButton, { borderColor: Colors[colorScheme ?? "light"].tint }]}
-        onPress={() => router.push("/(auth)/signup")}
-      >
-        <Text style={[styles.signupButtonText, { color: Colors[colorScheme ?? "light"].tint }]}>Create Account</Text>
-      </TouchableOpacity>
-    </View>
-  )
-
-  const renderEmptyListings = () => (
-    <View style={styles.emptyContainer}>
-      <MaterialIcons name="storefront" size={64} color={Colors[colorScheme ?? "light"].textDim} />
-      <Text style={[styles.emptyText, { color: Colors[colorScheme ?? "light"].text }]}>No listings yet</Text>
-      <Text style={[styles.emptySubText, { color: Colors[colorScheme ?? "light"].textDim }]}>
-        Start selling by creating your first listing
-      </Text>
-      <TouchableOpacity
-        style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
-        onPress={() => router.push("/sell")}
-      >
-        <Text style={styles.actionButtonText}>Create Listing</Text>
-      </TouchableOpacity>
-    </View>
-  )
-
-  const renderEmptyOrders = () => (
-    <View style={styles.emptyContainer}>
-      <MaterialIcons name="shopping-bag" size={64} color={Colors[colorScheme ?? "light"].textDim} />
-      <Text style={[styles.emptyText, { color: Colors[colorScheme ?? "light"].text }]}>No orders yet</Text>
-      <Text style={[styles.emptySubText, { color: Colors[colorScheme ?? "light"].textDim }]}>
-        Browse the marketplace to find items to buy
-      </Text>
-      <TouchableOpacity
-        style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
-        onPress={() => router.push("/marketplace")}
-      >
-        <Text style={styles.actionButtonText}>Browse Marketplace</Text>
-      </TouchableOpacity>
-    </View>
-  )
-
-  if (!user) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-        {renderNotLoggedIn()}
-      </SafeAreaView>
-    )
-  }
+  if (!session) return null
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-      {!isConnected && <OfflineBanner />}
-      <ScrollView contentContainerStyle={styles.scrollContent} refreshing={refreshing} onRefresh={onRefresh}>
-        <View style={styles.profileHeader}>
-          <View style={styles.profileImageContainer}>
-            {updatingProfile ? (
-              <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} />
-            ) : (
-              <>
-              <Image
-                  source={{ uri: user.profilePicture || "/placeholder.svg?height=100&width=100" }}
-                  style={styles.profileImage}
-                />
-                <TouchableOpacity style={styles.editProfileImageButton} onPress={pickProfileImage}>
-                  <MaterialIcons name="edit" size={20} color="white" />
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-          <View style={styles.profileInfo}>
-            <View style={styles.nameContainer}>
-              <Text style={[styles.userName, { color: Colors[colorScheme ?? "light"].text }]}>
-                {profile.firstName} {profile.lastName}
-              </Text>
-              {profile.isVerified && (
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="white" />
-                </View>
-              )}
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.avatarContainer} onPress={pickImage} disabled={uploading}>
+          {uploading ? (
+            <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} style={styles.avatar} />
+          ) : profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <FontAwesome5 name="user" size={40} color="#fff" />
             </View>
-            <Text style={[styles.userEmail, { color: Colors[colorScheme ?? "light"].textDim }]}>{profile.email}</Text>
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: Colors[colorScheme ?? "light"].text }]}>
-                  {userProducts.length}
-                </Text>
-                <Text style={[styles.statLabel, { color: Colors[colorScheme ?? "light"].textDim }]}>Listings</Text>
-              </View>
-
-              <View style={styles.statDivider} />
-
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: Colors[colorScheme ?? "light"].text }]}>
-                  {userOrders.length}
-                </Text>
-                <Text style={[styles.statLabel, { color: Colors[colorScheme ?? "light"].textDim }]}>Orders</Text>
-              </View>
-
-              <View style={styles.statDivider} />
-
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: Colors[colorScheme ?? "light"].text }]}>
-                  {user.rating || "0.0"}
-                </Text>
-                <Text style={[styles.statLabel, { color: Colors[colorScheme ?? "light"].textDim }]}>Rating</Text>
-              </View>
-            </View>
+          )}
+          <View style={styles.cameraIcon}>
+            <Ionicons name="camera" size={16} color="#fff" />
           </View>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity
-            style={[styles.actionButtonSmall, { backgroundColor: Colors[colorScheme ?? "light"].cardBackground }]}
-            onPress={() => router.push("/profile/edit")}
-          >
-            <MaterialIcons name="edit" size={20} color={Colors[colorScheme ?? "light"].text} />
-            <Text style={[styles.actionButtonSmallText, { color: Colors[colorScheme ?? "light"].text }]}>
-              Edit Profile
-            </Text>
-          </TouchableOpacity>
+        <Text style={styles.name}>
+          {profile?.first_name} {profile?.last_name}
+        </Text>
+        <Text style={styles.email}>{session.user.email}</Text>
 
-          <TouchableOpacity
-            style={[styles.actionButtonSmall, { backgroundColor: Colors[colorScheme ?? "light"].cardBackground }]}
-            onPress={handleVerifyAccount}
-          >
-            <MaterialIcons
-              name={user.isVerified ? "verified-user" : "verified"}
-              size={20}
-              color={user.isVerified ? "#4CAF50" : Colors[colorScheme ?? "light"].text}
-            />
-            <Text style={[styles.actionButtonSmallText, { color: Colors[colorScheme ?? "light"].text }]}>
-              {user.isVerified ? "Verified" : "Verify Account"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButtonSmall, { backgroundColor: Colors[colorScheme ?? "light"].cardBackground }]}
-            onPress={handleLogout}
-          >
-            <MaterialIcons name="logout" size={20} color={Colors[colorScheme ?? "light"].text} />
-            <Text style={[styles.actionButtonSmallText, { color: Colors[colorScheme ?? "light"].text }]}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === "listings" && [
-                styles.activeTabButton,
-                { borderBottomColor: Colors[colorScheme ?? "light"].tint },
-              ],
-            ]}
-            onPress={() => setActiveTab("listings")}
-          >
-            <Text
-              style={[
-                styles.tabButtonText,
-                { color: Colors[colorScheme ?? "light"].text },
-                activeTab === "listings" && {
-                  color: Colors[colorScheme ?? "light"].tint,
-                  fontWeight: "bold",
-                },
-              ]}
-            >
-              My Listings
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === "orders" && [
-                styles.activeTabButton,
-                { borderBottomColor: Colors[colorScheme ?? "light"].tint },
-              ],
-            ]}
-            onPress={() => setActiveTab("orders")}
-          >
-            <Text
-              style={[
-                styles.tabButtonText,
-                { color: Colors[colorScheme ?? "light"].text },
-                activeTab === "orders" && {
-                  color: Colors[colorScheme ?? "light"].tint,
-                  fontWeight: "bold",
-                },
-              ]}
-            >
-              My Orders
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} />
-            <Text style={[styles.loadingText, { color: Colors[colorScheme ?? "light"].text }]}>Loading...</Text>
+        {profile?.is_verified ? (
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedText}>Verified Student</Text>
           </View>
         ) : (
-          <View style={styles.tabContent}>
-            {activeTab === "listings" ? (
-              userProducts.length > 0 ? (
-                <View style={styles.productsGrid}>
-                  {userProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onPress={() => router.push(`/product/${product.id}`)}
-                      style={styles.productCard}
-                    />
-                  ))}
-                </View>
-              ) : (
-                renderEmptyListings()
-              )
-            ) : userOrders.length > 0 ? (
-              <View style={styles.ordersList}>
-                {userOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} onPress={() => router.push(`/orders/${order.id}`)} />
-                ))}
-              </View>
-            ) : (
-              renderEmptyOrders()
-            )}
-          </View>
+          <TouchableOpacity style={styles.verifyButton} onPress={() => router.push("/profile/verify")}>
+            <Text style={styles.verifyButtonText}>Verify Student ID</Text>
+          </TouchableOpacity>
         )}
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/edit")}>
+          <FontAwesome5 name="user" size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Text style={styles.menuItemText}>Edit Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/listings")}>
+          <FontAwesome5 name="shopping-bag" size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Text style={styles.menuItemText}>My Listings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/settings")}>
+          <Ionicons name="settings" size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Text style={styles.menuItemText}>Settings</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Preferences</Text>
+
+        <View style={styles.menuItem}>
+          {theme === "dark" ? (
+            <Ionicons name="moon" size={20} color={Colors[colorScheme ?? "light"].text} />
+          ) : (
+            <Ionicons name="sunny" size={20} color={Colors[colorScheme ?? "light"].text} />
+          )}
+          <Text style={styles.menuItemText}>Dark Mode</Text>
+          <Switch value={theme === "dark"} onValueChange={toggleTheme} style={styles.switch} />
+        </View>
+      </View>
+
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Ionicons name="log-out" size={20} color="#fff" />
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  profileHeader: {
-    flexDirection: "row",
     padding: 16,
+  },
+  header: {
     alignItems: "center",
+    marginBottom: 24,
+    paddingVertical: 16,
   },
-  profileImageContainer: {
+  avatarContainer: {
     position: "relative",
-    marginRight: 16,
+    marginBottom: 16,
   },
-  profileImage: {
+  avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
   },
-  editProfileImageButton: {
+  avatarPlaceholder: {
+    backgroundColor: "#0891b2",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cameraIcon: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: "#0891b2",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
   },
-  profileInfo: {
-    flex: 1,
-  },
-  nameContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  userName: {
-    fontSize: 20,
+  name: {
+    fontSize: 22,
     fontWeight: "bold",
+    marginBottom: 4,
   },
-  verifiedBadge: {
-    backgroundColor: "#4CAF50",
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-  },
-  userEmail: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    marginTop: 12,
-    alignItems: "center",
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statValue: {
+  email: {
     fontSize: 16,
-    fontWeight: "bold",
-  },
-  statLabel: {
-    fontSize: 12,
-  },
-  statDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: "#ccc",
-    marginHorizontal: 12,
-  },
-  actionButtonsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
+    color: "#666",
     marginBottom: 16,
   },
-  actionButtonSmall: {
-    flexDirection: "row",
-    alignItems: "center",
+  verifiedBadge: {
+    backgroundColor: "#10b981",
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  actionButtonSmallText: {
-    fontSize: 14,
-    marginLeft: 4,
+  verifiedText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
-  tabsContainer: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+  verifyButton: {
+    backgroundColor: "#f59e0b",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
+  verifyButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
-  activeTabButton: {
-    borderBottomWidth: 2,
-  },
-  tabButtonText: {
-    fontSize: 16,
-  },
-  tabContent: {
-    flex: 1,
+  section: {
+    marginBottom: 24,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
     padding: 16,
   },
-  productsGrid: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  menuItem: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    margin: -8,
-  },
-  productCard: {
-    width: "50%",
-    padding: 8,
-  },
-  ordersList: {
-    gap: 12,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 24,
-    minHeight: 300,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 16,
-  },
-  emptySubText: {
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: 8,
-  },
-  actionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  actionButtonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    minHeight: 300,
-  },
-  loadingText: {
-    marginTop: 16,
+  menuItemText: {
     fontSize: 16,
-  },
-  notLoggedInContainer: {
+    marginLeft: 12,
     flex: 1,
-    justifyContent: "center",
+  },
+  switch: {
+    marginLeft: "auto",
+  },
+  signOutButton: {
+    backgroundColor: "#ef4444",
+    flexDirection: "row",
     alignItems: "center",
-    padding: 24,
-  },
-  notLoggedInText: {
-    fontSize: 18,
-    textAlign: "center",
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  loginButton: {
-    paddingHorizontal: 24,
+    justifyContent: "center",
     paddingVertical: 12,
     borderRadius: 8,
-    marginBottom: 12,
-    width: "80%",
-    alignItems: "center",
+    marginBottom: 40,
   },
-  loginButtonText: {
-    color: "white",
-    fontSize: 16,
+  signOutText: {
+    color: "#fff",
     fontWeight: "bold",
-  },
-  signupButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    width: "80%",
-    alignItems: "center",
-  },
-  signupButtonText: {
     fontSize: 16,
-    fontWeight: "bold",
+    marginLeft: 8,
   },
 })

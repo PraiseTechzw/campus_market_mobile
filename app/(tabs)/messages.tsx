@@ -1,225 +1,108 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { StyleSheet, FlatList, View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native"
-import { router } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { useColorScheme } from "react-native"
-import { Ionicons, MaterialIcons } from "@expo/vector-icons"
+import { StyleSheet, FlatList, RefreshControl } from "react-native"
+import { Text, View } from "@/components/themed"
+import { useQuery } from "@tanstack/react-query"
+import { getConversations } from "@/services/messages"
+import { useSession } from "@/providers/session-provider"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
-import { useNetwork } from "@/providers/network-provider"
-import { useAuth } from "@/providers/auth-provider"
-import { getConversations } from "@/services/api"
-import { getLocalConversations } from "@/utils/storage"
 import type { Conversation } from "@/types"
-import SearchBar from "@/components/search-bar"
-import OfflineBanner from "@/components/offline-banner"
-import { formatDistanceToNow } from "date-fns"
+import { useRouter } from "expo-router"
+import ConversationItem from "@/components/messages/conversation-item"
+import { ActivityIndicator } from "react-native"
+import { supabase } from "@/lib/supabase"
 
 export default function MessagesScreen() {
-  const colorScheme = useColorScheme()
-  const { isConnected } = useNetwork()
-  const { user } = useAuth()
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [loading, setLoading] = useState(true)
+  const { session } = useSession()
   const [refreshing, setRefreshing] = useState(false)
+  const colorScheme = useColorScheme()
+  const router = useRouter()
+
+  const {
+    data: conversations,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => getConversations(),
+    enabled: !!session,
+  })
 
   useEffect(() => {
-    if (user) {
-      loadConversations()
-    } else {
-      setLoading(false)
-    }
-  }, [user, isConnected])
+    // Subscribe to new messages
+    if (!session) return
 
-  useEffect(() => {
-    if (searchQuery) {
-      const filtered = conversations.filter(
-        (conv) =>
-          conv.otherUser.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          conv.otherUser.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          conv.lastMessage.text.toLowerCase().includes(searchQuery.toLowerCase()),
+    const subscription = supabase
+      .channel("messages")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${session.user.id}`,
+        },
+        () => {
+          // Refetch conversations when a new message is received
+          refetch()
+        },
       )
-      setFilteredConversations(filtered)
-    } else {
-      setFilteredConversations(conversations)
-    }
-  }, [searchQuery, conversations])
+      .subscribe()
 
-  const loadConversations = async () => {
-    if (!user) return
-
-    setLoading(true)
-    try {
-      if (isConnected) {
-        // Online mode - fetch from API
-        const conversationsData = await getConversations(user.id)
-        setConversations(conversationsData)
-      } else {
-        // Offline mode - load from local storage
-        const localConversations = await getLocalConversations()
-        setConversations(localConversations)
-      }
-    } catch (error) {
-      console.error("Error loading conversations:", error)
-    } finally {
-      setLoading(false)
+    return () => {
+      subscription.unsubscribe()
     }
-  }
+  }, [session, refetch])
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await loadConversations()
+    await refetch()
     setRefreshing(false)
   }
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
+  const navigateToConversation = (conversation: Conversation) => {
+    router.push({
+      pathname: "/messages/[id]",
+      params: { id: conversation.id },
+    })
   }
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <MaterialIcons name="chat-bubble-outline" size={64} color={Colors[colorScheme ?? "light"].textDim} />
-      <Text style={[styles.emptyText, { color: Colors[colorScheme ?? "light"].text }]}>No messages yet</Text>
-      <Text style={[styles.emptySubText, { color: Colors[colorScheme ?? "light"].textDim }]}>
-        Start a conversation by messaging a seller
-      </Text>
-      <TouchableOpacity
-        style={[styles.browseButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
-        onPress={() => router.push("/marketplace")}
-      >
-        <Text style={styles.browseButtonText}>Browse Marketplace</Text>
-      </TouchableOpacity>
-    </View>
+  const renderItem = ({ item }: { item: Conversation }) => (
+    <ConversationItem conversation={item} onPress={() => navigateToConversation(item)} />
   )
 
-  const renderNotLoggedIn = () => (
-    <View style={styles.notLoggedInContainer}>
-      <MaterialIcons name="lock" size={64} color={Colors[colorScheme ?? "light"].textDim} />
-      <Text style={[styles.notLoggedInText, { color: Colors[colorScheme ?? "light"].text }]}>
-        You need to be logged in to view messages
-      </Text>
-      <TouchableOpacity
-        style={[styles.loginButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
-        onPress={() => router.push("/(auth)/login")}
-      >
-        <Text style={styles.loginButtonText}>Log In</Text>
-      </TouchableOpacity>
-    </View>
-  )
-
-  if (!user) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-        {renderNotLoggedIn()}
-      </SafeAreaView>
-    )
-  }
-
-  if (loading && !refreshing) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-        <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} />
-        <Text style={[styles.loadingText, { color: Colors[colorScheme ?? "light"].text }]}>Loading messages...</Text>
-      </View>
-    )
-  }
+  if (!session) return null
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-      {!isConnected && <OfflineBanner />}
+    <View style={styles.container}>
+      <Text style={styles.title}>Messages</Text>
 
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}>Messages</Text>
-        <SearchBar placeholder="Search messages..." value={searchQuery} onChangeText={handleSearch} />
-      </View>
-
-      <FlatList
-        data={filteredConversations}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.conversationItem,
-              {
-                backgroundColor: Colors[colorScheme ?? "light"].cardBackground,
-                borderColor: Colors[colorScheme ?? "light"].border,
-              },
-            ]}
-            onPress={() => router.push(`/chat/${item.id}`)}
-          >
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{ uri: item.otherUser.profilePicture || "/placeholder.svg?height=50&width=50" }}
-                style={styles.avatar}
-              />
-              {item.otherUser.isVerified && (
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="white" />
-                </View>
-              )}
-              {item.otherUser.isOnline && <View style={styles.onlineIndicator} />}
+      {isLoading ? (
+        <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} style={styles.loader} />
+      ) : (
+        <FlatList
+          data={conversations}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No conversations yet</Text>
+              <Text style={styles.emptySubtext}>Start a conversation by messaging a seller or landlord</Text>
             </View>
-
-            <View style={styles.conversationContent}>
-              <View style={styles.conversationHeader}>
-                <Text style={[styles.userName, { color: Colors[colorScheme ?? "light"].text }]}>
-                  {item.otherUser.firstName} {item.otherUser.lastName}
-                </Text>
-                <Text style={[styles.timeText, { color: Colors[colorScheme ?? "light"].textDim }]}>
-                  {formatDistanceToNow(new Date(item.lastMessage.timestamp), { addSuffix: true })}
-                </Text>
-              </View>
-
-              <View style={styles.messagePreviewContainer}>
-                <Text
-                  style={[
-                    styles.messagePreview,
-                    { color: Colors[colorScheme ?? "light"].textDim },
-                    item.unreadCount > 0 && { color: Colors[colorScheme ?? "light"].text, fontWeight: "500" },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {item.lastMessage.text}
-                </Text>
-
-                {item.unreadCount > 0 && (
-                  <View style={[styles.unreadBadge, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}>
-                    <Text style={styles.unreadCount}>{item.unreadCount}</Text>
-                  </View>
-                )}
-              </View>
-
-              {item.productId && (
-                <View style={[styles.productPreview, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-                  <Image
-                    source={{ uri: item.productImage || "/placeholder.svg?height=30&width=30" }}
-                    style={styles.productImage}
-                  />
-                  <Text style={[styles.productName, { color: Colors[colorScheme ?? "light"].text }]} numberOfLines={1}>
-                    {item.productName}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={[styles.listContent, filteredConversations.length === 0 && styles.emptyList]}
-        ListEmptyComponent={renderEmptyState}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-      />
-    </SafeAreaView>
+          }
+        />
+      )}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
     padding: 16,
   },
   title: {
@@ -227,102 +110,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 16,
   },
-  conversationItem: {
-    flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  avatarContainer: {
-    position: "relative",
-    marginRight: 12,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  verifiedBadge: {
-    position: "absolute",
-    bottom: -2,
-    right: -2,
-    backgroundColor: "#4CAF50",
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  onlineIndicator: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#4CAF50",
-    borderWidth: 2,
-    borderColor: "white",
-  },
-  conversationContent: {
-    flex: 1,
-  },
-  conversationHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  timeText: {
-    fontSize: 12,
-  },
-  messagePreviewContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  messagePreview: {
-    fontSize: 14,
-    flex: 1,
-  },
-  unreadBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
-  },
-  unreadCount: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  productPreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  productImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  productName: {
-    fontSize: 12,
-    flex: 1,
-  },
   listContent: {
-    flexGrow: 1,
+    paddingBottom: 20,
   },
-  emptyList: {
+  loader: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
@@ -331,57 +122,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    marginTop: 100,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: "bold",
-    marginTop: 16,
+    color: "#666",
+    marginBottom: 8,
   },
-  emptySubText: {
+  emptySubtext: {
     fontSize: 14,
+    color: "#999",
     textAlign: "center",
-    marginTop: 8,
-  },
-  browseButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  browseButtonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  notLoggedInContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  notLoggedInText: {
-    fontSize: 18,
-    textAlign: "center",
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  loginButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  loginButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
+    paddingHorizontal: 40,
   },
 })

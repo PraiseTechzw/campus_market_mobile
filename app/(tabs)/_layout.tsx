@@ -1,167 +1,90 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { StyleSheet, Platform, View } from "react-native";
-import { Tabs } from "expo-router";
-import { useColorScheme } from "react-native";
-import Colors from "@/constants/Colors";
-import { useAuth } from "@/providers/auth-provider";
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-  MaterialIcons,
-} from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
-import Animated, { FadeIn } from "react-native-reanimated";
+import type React from "react"
+
+import FontAwesome from "@expo/vector-icons/FontAwesome"
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
+import { Tabs } from "expo-router"
+import { useColorScheme } from "@/hooks/use-color-scheme"
+import Colors from "@/constants/Colors"
+import AuthGuard from "@/components/auth-guard"
+
+/**
+ * You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
+ */
+function TabBarIcon(props: {
+  name: React.ComponentProps<typeof FontAwesome>["name"]
+  color: string
+}) {
+  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === "admin";
+  return (
+    <AuthGuard requireAuth={true} requireOnboarding={false}>
+      <TabNavigator />
+    </AuthGuard>
+  )
+}
+
+function TabNavigator() {
+  const colorScheme = useColorScheme()
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        tabBarInactiveTintColor: Colors[colorScheme ?? "light"].textDim,
         tabBarStyle: {
-          position: "absolute",
-          bottom: Platform.OS === "ios" ? 20 : 10,
-          left: 20,
-          right: 20,
-          elevation: 0,
-          backgroundColor: "transparent",
-          borderTopWidth: 0,
+          paddingBottom: 5,
+          paddingTop: 5,
           height: 60,
         },
-        tabBarBackground: () => (
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                backgroundColor: colorScheme === "dark" 
-                  ? "rgba(0, 0, 0, 0.8)" 
-                  : "rgba(255, 255, 255, 0.8)",
-              }
-            ]}
-          />
-        ),
-        tabBarItemStyle: {
-          paddingVertical: 5,
-        },
-        tabBarLabelStyle: {
-          fontFamily: "Poppins-Medium",
-          fontSize: 12,
-          marginTop: -5,
-        },
-        headerTitleStyle: {
-          fontFamily: "Poppins-SemiBold",
-        },
-        headerStyle: {
-          backgroundColor: Colors[colorScheme ?? "light"].background,
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 0,
-        },
+        tabBarShowLabel: true,
+        headerShown: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <Animated.View entering={FadeIn.duration(200)}>
-              <Ionicons
-                name={focused ? "home" : "home-outline"}
-                size={24}
-                color={color}
-              />
-            </Animated.View>
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="marketplace"
         options={{
-          title: "Marketplace",
-          tabBarIcon: ({ color, focused }) => (
-            <Animated.View entering={FadeIn.duration(200)}>
-              <MaterialIcons name="store" size={24} color={color} />
-            </Animated.View>
-          ),
+          title: "Market",
+          tabBarIcon: ({ color }) => <FontAwesome5 name="shopping-bag" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="sell"
+        name="accommodation"
         options={{
-          title: "Sell",
-          tabBarIcon: ({ color, focused }) => (
-            <Animated.View entering={FadeIn.duration(200)}>
-              <MaterialCommunityIcons
-                name={focused ? "plus-circle" : "plus-circle-outline"}
-                size={28}
-                color={color}
-              />
-            </Animated.View>
-          ),
+          title: "Housing",
+          tabBarIcon: ({ color }) => <FontAwesome5 name="building" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: "Messages",
-          tabBarIcon: ({ color, focused }) => (
-            <Animated.View entering={FadeIn.duration(200)}>
-              <Ionicons
-                name={focused ? "chatbubble" : "chatbubble-outline"}
-                size={24}
-                color={color}
-              />
-            </Animated.View>
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="chatbubble" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          title: "Activity",
+          tabBarIcon: ({ color }) => <Ionicons name="notifications" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <Animated.View entering={FadeIn.duration(200)}>
-              <Ionicons
-                name={focused ? "person" : "person-outline"}
-                size={24}
-                color={color}
-              />
-            </Animated.View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="settings-outline" size={24} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="admin"
-        options={{
-          title: "Admin",
-          href: isAdmin ? undefined : null,
-          tabBarIcon: ({ color, focused }) => (
-            <Animated.View entering={FadeIn.duration(200)}>
-              <MaterialIcons
-                name="admin-panel-settings"
-                size={24}
-                color={color}
-              />
-            </Animated.View>
-          ),
+          tabBarIcon: ({ color }) => <FontAwesome5 name="user" size={24} color={color} />,
         }}
       />
     </Tabs>
-  );
+  )
 }

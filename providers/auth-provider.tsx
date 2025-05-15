@@ -235,27 +235,131 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, loading: true }))
 
     try {
-      // Create auth user with Supabase - using the format expected by the trigger
+      console.log("Starting signup process for:", email);
+      
+      // Prepare user metadata
+      const userMetadata = {
+        first_name: userData.firstName || userData.first_name || '',
+        last_name: userData.lastName || userData.last_name || '',
+        full_name: `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
+      };
+      
+      // Create auth user with Supabase
       const { data, error } = await supabase.auth.signUp({
         email,
-        password, 
+        password,
         options: {
           emailRedirectTo: `${DEEP_LINK_PREFIX}auth/callback?type=signup`,
-          data: {
-            first_name: userData.firstName || userData.first_name || '',
-            last_name: userData.lastName || userData.last_name || '',
-            full_name: `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
-          },
+          data: userMetadata,
         } as any, // Type assertion to resolve the linter error
       })
 
+      console.log("Signup response:", data?.user ? "User created" : "No user created", error ? `Error: ${error.message}` : "No error");
+
       if (error) {
-        handleAuthError(error)
-        return // Don't proceed if there was an error
+        // Log detailed error information
+        console.error("Signup error details:", JSON.stringify(error));
+        
+        // Check if it's the 500 unexpected_failure error which indicates database trigger issues
+        if (error.message.includes("Database error") || 
+            (error.status === 500 && error.name === "AuthApiError")) {
+          
+          console.log("Detected database error during signup, attempting alternative signup flow");
+          
+          // Try an alternative approach - create user without metadata first
+          const { data: basicData, error: basicError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${DEEP_LINK_PREFIX}auth/callback?type=signup`,
+            }
+          });
+          
+          if (basicError) {
+            console.error("Basic signup also failed:", basicError);
+            handleAuthError(basicError);
+            return;
+          }
+          
+          if (basicData?.user) {
+            console.log("Basic user created, now adding profile manually");
+            
+            // Wait 2 seconds for auth to finalize
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Manually create the profile since trigger failed
+            try {
+              const { data: profileData, error: profileError } = await supabase
+                .from("profiles")
+                .insert({
+                  id: basicData.user.id,
+                  email: email,
+                  first_name: userMetadata.first_name,
+                  last_name: userMetadata.last_name,
+                  full_name: userMetadata.full_name,
+                  is_verified: false,
+                  is_seller: false,
+                  role: 'student',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .select();
+                
+              if (profileError) {
+                console.error("Failed to manually create profile:", profileError);
+                // Continue anyway to show verification screen
+              } else {
+                console.log("Profile manually created");
+              }
+              
+              // Create user settings too
+              try {
+                await supabase
+                  .from("user_settings")
+                  .insert({
+                    id: basicData.user.id,
+                    notification_preferences: {"email": true, "push": true, "messages": true, "orders": true, "marketing": false},
+                    theme: 'system',
+                    language: 'en',
+                    currency: 'USD',
+                    privacy_settings: {"show_email": false, "show_phone": false, "show_activity": true},
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  });
+                console.log("User settings manually created");
+              } catch (e) {
+                console.warn("Error creating user settings:", e);
+                // Continue anyway
+              }
+              
+              // Show success and route to verification
+              Toast.show({
+                type: "success",
+                text1: "Account Created",
+                text2: "Please check your email to verify your account.",
+              });
+              
+              router.replace("/(auth)/verification-pending");
+              return;
+            } catch (manualError) {
+              console.error("Error during manual profile creation:", manualError);
+              // Continue to standard error handling
+            }
+          }
+        }
+        
+        // Handle normal auth errors
+        handleAuthError(error);
+        return;
       }
 
       // Verify the user was actually created and has an account
       if (data.user) {
+        console.log("User created with ID:", data.user.id);
+        
+        // Add a small delay to allow database triggers to complete
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
         // Check if profile was created successfully
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
@@ -263,27 +367,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("id", data.user.id)
           .single();
 
+        console.log("Profile check result:", profileData ? "Profile exists" : "No profile found", 
+                   profileError ? `Error: ${profileError.message}` : "No error");
+
         if (profileError || !profileData) {
-          console.error("Error verifying user profile:", profileError);
+          console.error("Error verifying user profile:", profileError || "Profile not found");
+          console.log("Attempting to manually create profile...");
           
-          // Try to clean up the failed user
+          // Manually create the profile if the trigger failed
           try {
-            // We can't use admin.deleteUser from client, so let's null the session
-            await supabase.auth.signOut();
-          } catch (e) {
-            console.error("Error during cleanup:", e);
+            const fullName = `${userMetadata.first_name} ${userMetadata.last_name}`.trim();
+            
+            const { data: manualProfileData, error: manualProfileError } = await supabase
+              .from("profiles")
+              .insert({
+                id: data.user.id,
+                email: email,
+                first_name: userMetadata.first_name,
+                last_name: userMetadata.last_name,
+                full_name: fullName,
+                is_verified: false,
+                is_seller: false,
+                role: 'student',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .select();
+              
+            if (manualProfileError) {
+              console.error("Failed to manually create profile:", manualProfileError);
+              
+              // Try to clean up the failed user
+              try {
+                console.log("Attempting to clean up failed user registration");
+                await supabase.auth.signOut();
+              } catch (e) {
+                console.error("Error during cleanup:", e);
+              }
+              
+              Toast.show({
+                type: "error",
+                text1: "Signup Failed",
+                text2: "Unable to create your profile. Please try again with a different email or contact support.",
+              });
+              
+              return;
+            }
+            
+            console.log("Profile manually created:", manualProfileData);
+            
+            // Try to create user settings too
+            try {
+              const { error: settingsError } = await supabase
+                .from("user_settings")
+                .insert({
+                  id: data.user.id,
+                  notification_preferences: {"email": true, "push": true, "messages": true, "orders": true, "marketing": false},
+                  theme: 'system',
+                  language: 'en',
+                  currency: 'USD',
+                  privacy_settings: {"show_email": false, "show_phone": false, "show_activity": true},
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                });
+                
+              if (settingsError) {
+                console.warn("Created profile but failed to create settings:", settingsError);
+                // Continue anyway since profile was created
+              }
+            } catch (e) {
+              console.warn("Error creating user settings:", e);
+              // Continue anyway since profile was created
+            }
+          } catch (manualError) {
+            console.error("Error during manual profile creation:", manualError);
+            
+            // Try to clean up the failed user
+            try {
+              console.log("Attempting to clean up failed user registration");
+              await supabase.auth.signOut();
+            } catch (e) {
+              console.error("Error during cleanup:", e);
+            }
+            
+            Toast.show({
+              type: "error",
+              text1: "Signup Failed",
+              text2: "Database error creating your profile. Please try again with a different email or contact support.",
+            });
+            
+            return;
           }
-          
-          Toast.show({
-            type: "error",
-            text1: "Signup Failed",
-            text2: "Could not create your profile. Please try again or contact support.",
-          });
-          
-          return; // Don't redirect to verification
         }
 
         // If we got here, the user was created successfully
+        console.log("Signup successful, profile created properly");
         Toast.show({
           type: "success",
           text1: "Account Created",
@@ -292,14 +470,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Now it's safe to redirect to verification page
         router.replace("/(auth)/verification-pending");
+      } else {
+        console.error("No user data returned after signup");
+        Toast.show({
+          type: "error",
+          text1: "Signup Failed",
+          text2: "No user data returned. Please try again.",
+        });
       }
     } catch (error) {
-      console.error("Error during signup:", error)
+      console.error("Error during signup:", error);
+      
+      // Log detailed error information
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      } else {
+        console.error("Non-Error object thrown:", JSON.stringify(error));
+      }
+      
       Toast.show({
         type: "error",
         text1: "Signup Failed",
         text2: "An error occurred during signup. Please try again.",
-      })
+      });
     } finally {
       setState((prev) => ({ ...prev, loading: false }))
     }

@@ -1,294 +1,162 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { StyleSheet, FlatList, View, Text, TouchableOpacity, ActivityIndicator } from "react-native"
-import { useLocalSearchParams, router } from "expo-router"
-import { MaterialIcons } from "@expo/vector-icons"
-import { useTheme } from "@/providers/theme-provider"
-import { useNetwork } from "@/providers/network-provider"
-import { useSupabaseQuery } from "@/hooks/use-supabase-query"
-import { supabase } from "@/lib/supabase"
-import type { Product, Category, FilterOptions } from "@/types"
-import { getLocalProducts } from "@/utils/storage"
-import SearchBar from "@/components/search-bar"
-import CategoryList from "@/components/category-list"
-import ProductCard from "@/components/product-card"
-import FilterModal from "@/components/filter-modal"
-import ScreenContainer from "@/components/screen-container"
-import Button from "@/components/button"
-import { globalStyles } from "@/constants/Styles"
+import { useState } from "react"
+import { StyleSheet, FlatList, RefreshControl, TouchableOpacity, TextInput } from "react-native"
+import { Text, View } from "@/components/themed"
+import { useQuery } from "@tanstack/react-query"
+import { getListings } from "@/services/marketplace"
+import ListingCard from "@/components/marketplace/listing-card"
+import { useColorScheme } from "@/hooks/use-color-scheme"
+import Colors from "@/constants/Colors"
+import type { Listing, ListingCategory } from "@/types"
+import { Filter, Plus, Search } from "lucide-react"
+import { useRouter } from "expo-router"
+import CategoryFilter from "@/components/marketplace/category-filter"
+import { ActivityIndicator } from "react-native"
 
 export default function MarketplaceScreen() {
-  const params = useLocalSearchParams()
-  const { colors } = useTheme()
-  const { isConnected } = useNetwork()
-  const [selectedCategory, setSelectedCategory] = useState<string | null>((params.category as string) || null)
-  const [searchQuery, setSearchQuery] = useState((params.search as string) || "")
-  const [filterModalVisible, setFilterModalVisible] = useState(false)
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    priceRange: [0, 1000],
-    condition: [],
-    sortBy: "newest",
-  })
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [refreshing, setRefreshing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<ListingCategory | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
+  const colorScheme = useColorScheme()
+  const router = useRouter()
 
-  // Fetch categories
   const {
-    data: categories,
-    loading: categoriesLoading,
-    error: categoriesError,
-    refetch: refetchCategories,
-  } = useSupabaseQuery<Category>({
-    key: "categories",
-    query: () => supabase.from("categories").select("*").order("name"),
+    data: listings,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["listings", selectedCategory?.id, searchQuery],
+    queryFn: () =>
+      getListings({
+        categoryId: selectedCategory?.id,
+        searchQuery,
+      }),
   })
-
-  // Fetch products
-  const {
-    data: products,
-    loading: productsLoading,
-    error: productsError,
-    refetch: refetchProducts,
-  } = useSupabaseQuery<Product>({
-    key: "products",
-    query: () =>
-      supabase
-        .from("products")
-        .select(`
-          *,
-          seller:profiles(id, firstName, lastName, profilePicture, isVerified)
-        `)
-        .eq("isActive", true)
-        .order("createdAt", { ascending: false }),
-  })
-
-  useEffect(() => {
-    if (params.category) {
-      setSelectedCategory(params.category as string)
-    }
-    if (params.search) {
-      setSearchQuery(params.search as string)
-    }
-  }, [params])
-
-  useEffect(() => {
-    if (!isConnected) {
-      // Load from local storage when offline
-      const loadLocalProducts = async () => {
-        const localProducts = await getLocalProducts()
-        setFilteredProducts(applyFiltersToProducts(localProducts))
-      }
-      loadLocalProducts()
-    } else if (products) {
-      setFilteredProducts(applyFiltersToProducts(products))
-    }
-  }, [products, selectedCategory, searchQuery, filterOptions, isConnected])
-
-  const applyFiltersToProducts = useCallback(
-    (productsToFilter: Product[]) => {
-      let filtered = [...productsToFilter]
-
-      // Apply category filter
-      if (selectedCategory) {
-        filtered = filtered.filter((product) => product.categoryId === selectedCategory)
-      }
-
-      // Apply search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        filtered = filtered.filter(
-          (product) => product.name.toLowerCase().includes(query) || product.description.toLowerCase().includes(query),
-        )
-      }
-
-      // Apply price range filter
-      filtered = filtered.filter(
-        (product) => product.price >= filterOptions.priceRange[0] && product.price <= filterOptions.priceRange[1],
-      )
-
-      // Apply condition filter
-      if (filterOptions.condition.length > 0) {
-        filtered = filtered.filter((product) => filterOptions.condition.includes(product.condition))
-      }
-
-      // Apply sorting
-      switch (filterOptions.sortBy) {
-        case "newest":
-          filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          break
-        case "oldest":
-          filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-          break
-        case "price_low_high":
-          filtered.sort((a, b) => a.price - b.price)
-          break
-        case "price_high_low":
-          filtered.sort((a, b) => b.price - a.price)
-          break
-      }
-
-      return filtered
-    },
-    [selectedCategory, searchQuery, filterOptions],
-  )
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-  }
-
-  const handleCategorySelect = (category: Category | null) => {
-    setSelectedCategory(category ? category.id : null)
-  }
-
-  const handleFilterApply = (options: FilterOptions) => {
-    setFilterOptions(options)
-    setFilterModalVisible(false)
-  }
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await Promise.all([refetchCategories(), refetchProducts()])
+    await refetch()
     setRefreshing(false)
   }
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.searchContainer}>
-        <SearchBar placeholder="Search products, books, tech..." value={searchQuery} onChangeText={handleSearch} />
-        <TouchableOpacity
-          style={[styles.filterButton, { backgroundColor: colors.cardBackground }]}
-          onPress={() => setFilterModalVisible(true)}
-        >
-          <MaterialIcons name="filter-list" size={24} color={colors.text} />
+  const navigateToCreateListing = () => {
+    router.push("/marketplace/create")
+  }
+
+  const renderItem = ({ item }: { item: Listing }) => <ListingCard listing={item} style={styles.listingCard} />
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.searchContainer}>
+          <Search size={20} color="#666" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search marketplace..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
+          <Filter size={20} color={Colors[colorScheme ?? "light"].text} />
         </TouchableOpacity>
       </View>
 
-      <CategoryList
-        categories={categories || []}
-        selectedCategoryId={selectedCategory}
-        onSelectCategory={handleCategorySelect}
-        showAllOption
-      />
+      {showFilters && <CategoryFilter selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />}
+
+      {isLoading ? (
+        <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} style={styles.loader} />
+      ) : (
+        <FlatList
+          data={listings}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={<Text style={styles.emptyText}>No listings found. Try adjusting your filters.</Text>}
+        />
+      )}
+
+      <TouchableOpacity style={styles.fab} onPress={navigateToCreateListing}>
+        <Plus size={24} color="#fff" />
+      </TouchableOpacity>
     </View>
-  )
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <MaterialIcons name="search-off" size={64} color={colors.textDim} />
-      <Text style={[styles.emptyText, { color: colors.text }]}>No products found</Text>
-      <Text style={[styles.emptySubText, { color: colors.textDim }]}>Try adjusting your filters or search terms</Text>
-      <Button
-        title="Reset Filters"
-        onPress={() => {
-          setSearchQuery("")
-          setSelectedCategory(null)
-          setFilterOptions({
-            priceRange: [0, 1000],
-            condition: [],
-            sortBy: "newest",
-          })
-        }}
-        icon="refresh"
-        style={styles.resetButton}
-      />
-    </View>
-  )
-
-  const loading = (productsLoading || categoriesLoading) && !refreshing
-
-  if (loading) {
-    return (
-      <ScreenContainer>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.tint} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>Loading products...</Text>
-        </View>
-      </ScreenContainer>
-    )
-  }
-
-  return (
-    <ScreenContainer>
-      <FlatList
-        data={filteredProducts}
-        renderItem={({ item }) => (
-          <ProductCard product={item} onPress={() => router.push(`/product/${item.id}`)} style={styles.productCard} />
-        )}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={2}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={[styles.listContent, filteredProducts.length === 0 && styles.emptyList]}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-      />
-
-      <FilterModal
-        visible={filterModalVisible}
-        initialOptions={filterOptions}
-        onClose={() => setFilterModalVisible(false)}
-        onApply={handleFilterApply}
-        maxPrice={Math.max(...(products?.map((p) => p.price) || []), 1000)}
-      />
-    </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
-  header: {
+  container: {
+    flex: 1,
     padding: 16,
   },
+  header: {
+    flexDirection: "row",
+    marginBottom: 16,
+    alignItems: "center",
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
   },
   filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    marginLeft: 12,
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
   },
-  productCard: {
-    flex: 1,
-    margin: 8,
+  columnWrapper: {
+    justifyContent: "space-between",
   },
   listContent: {
-    paddingBottom: 16,
+    paddingBottom: 80,
   },
-  emptyList: {
-    flexGrow: 1,
+  listingCard: {
+    width: "48%",
+    marginBottom: 16,
   },
-  emptyContainer: {
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#0891b2",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  loader: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
-    minHeight: 400,
   },
   emptyText: {
-    ...globalStyles.h2,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubText: {
-    ...globalStyles.bodyMedium,
     textAlign: "center",
-    marginBottom: 24,
-  },
-  resetButton: {
-    minWidth: 160,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    ...globalStyles.bodyLarge,
-    marginTop: 16,
+    marginTop: 40,
+    color: "#666",
   },
 })

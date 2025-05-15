@@ -1,295 +1,300 @@
 "use client"
 
+import { useState, useRef, useEffect } from "react"
 import {
   StyleSheet,
-  View,
-  Text,
+  TouchableOpacity,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableOpacity,
-  Dimensions,
+  ActivityIndicator,
+  Animated,
+  Easing,
 } from "react-native"
-import { router, Link } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { useTheme } from "@/providers/theme-provider"
-import { useAuth } from "@/providers/auth-provider"
-import { useAuthForm } from "@/hooks/use-auth-form"
-import TextInput from "@/components/text-input"
-import Button from "@/components/button"
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-  FadeIn,
-  useAnimatedStyle,
-  withSpring,
-  useSharedValue,
-  withSequence,
-  withTiming,
-  interpolate,
-  Extrapolate,
-} from "react-native-reanimated"
-import { BlurView } from "expo-blur"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { globalStyles } from "@/constants/Styles"
-
-const { width } = Dimensions.get("window")
-
-interface LoginFormValues extends Record<string, string> {
-  email: string
-  password: string
-}
+import { Text, View } from "@/components/themed"
+import { useColorScheme } from "@/hooks/use-color-scheme"
+import { useRouter } from "expo-router"
+import { supabase } from "@/lib/supabase"
+import { TextInput } from "react-native"
+import { useSession } from "@/providers/session-provider"
+import { Alert } from "react-native"
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
+import AuthGuard from "@/components/auth-guard"
+import { StatusBar } from "expo-status-bar"
+import Colors from "@/constants/Colors"
 
 export default function LoginScreen() {
-  const { colors } = useTheme()
-  const { signIn } = useAuth()
-  const scale = useSharedValue(1)
-  const scrollY = useSharedValue(0)
+  return (
+    <AuthGuard requireAuth={false}>
+      <LoginContent />
+    </AuthGuard>
+  )
+}
 
-  const { values, errors, touched, isSubmitting, handleChange, handleBlur, handleSubmit } =
-    useAuthForm<LoginFormValues>({
-      initialValues: {
-        email: "",
-        password: "",
-      },
-      validation: {
-        email: [
-          {
-            validate: (value) => !!value.trim(),
-            message: "Email is required",
-          },
-          {
-            validate: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-            message: "Please enter a valid email address",
-          },
-        ],
-        password: [
-          {
-            validate: (value) => !!value.trim(),
-            message: "Password is required",
-          },
-        ],
-      },
-      onSubmit: async (values) => {
-        try {
-          scale.value = withSequence(
-            withSpring(0.95),
-            withSpring(1)
-          )
-          await signIn(values.email, values.password)
-          router.replace("/(tabs)")
-        } catch (error) {
-          // Error is handled in the auth provider
-        }
-      },
-    })
+function LoginContent() {
+  const colorScheme = useColorScheme()
+  const router = useRouter()
+  const { refreshSession } = useSession()
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(50)).current
+  const logoAnim = useRef(new Animated.Value(0.8)).current
+
+  useEffect(() => {
+    // Run entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [])
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password")
+      return
     }
-  })
 
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      scrollY.value,
-      [0, 100],
-      [1, 0.8],
-      Extrapolate.CLAMP
-    );
-    const translateY = interpolate(
-      scrollY.value,
-      [0, 100],
-      [0, -20],
-      Extrapolate.CLAMP
-    );
-    return {
-      transform: [{ scale }, { translateY }],
-    };
-  });
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) throw error
+
+      await refreshSession()
+      router.replace("/(tabs)")
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "An error occurred during login")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = () => {
+    router.push("/forgot-password")
+  }
+
+  const handleRegister = () => {
+    router.push("/register")
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidView}>
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
-          keyboardShouldPersistTaps="handled"
-          onScroll={(event) => {
-            scrollY.value = event.nativeEvent.contentOffset.y;
-          }}
-          scrollEventThrottle={16}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+    >
+      <StatusBar style="light" />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: logoAnim }],
+            },
+          ]}
         >
-          <Animated.View 
-            entering={FadeInDown.delay(200).duration(1000)} 
-            style={[styles.headerContainer, headerAnimatedStyle]}
-          >
-            <View style={styles.logoContainer}>
-              <BlurView intensity={20} style={styles.logoBlur}>
-                <MaterialCommunityIcons 
-                  name="storefront-outline" 
-                  size={48} 
-                  color={colors.tint} 
-                />
-              </BlurView>
-              <Text style={[styles.appName, { color: colors.tint }]}>Campus Market</Text>
+          <Image source={require("@/assets/images/logo.png")} style={styles.logo} />
+          <Text style={styles.appName}>UniConnect</Text>
+          <Text style={styles.tagline}>Your Campus Marketplace</Text>
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.formContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.title}>Login</Text>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
             </View>
+          </View>
 
-            <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
-            <Text style={[styles.subtitle, { color: colors.textDim }]}>Sign in to continue to Campus Market</Text>
-          </Animated.View>
-
-          <Animated.View 
-            entering={FadeInUp.delay(600).duration(1000)} 
-            style={[styles.formContainer, animatedStyle]}
-          >
-            <BlurView intensity={20} style={styles.formBlur}>
-              <Animated.View entering={FadeInUp.delay(700).duration(1000)}>
-                <TextInput
-                  label="Email"
-                  placeholder="Enter your email"
-                  value={values.email}
-                  onChangeText={handleChange("email")}
-                  onBlur={handleBlur("email")}
-                  error={touched.email ? errors.email : undefined}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  leftIcon="email"
-                  autoComplete="email"
-                  textContentType="emailAddress"
-                />
-              </Animated.View>
-
-              <Animated.View entering={FadeInUp.delay(800).duration(1000)}>
-                <TextInput
-                  label="Password"
-                  placeholder="Enter your password"
-                  value={values.password}
-                  onChangeText={handleChange("password")}
-                  onBlur={handleBlur("password")}
-                  error={touched.password ? errors.password : undefined}
-                  isPassword
-                  leftIcon="lock"
-                  autoComplete="password"
-                  textContentType="password"
-                />
-              </Animated.View>
-
-              <Animated.View entering={FadeInUp.delay(900).duration(1000)}>
-                <Link href="/(auth)/forgot-password" asChild>
-                  <TouchableOpacity style={styles.forgotPasswordContainer}>
-                    <Text style={[styles.forgotPasswordText, { color: colors.tint }]}>Forgot Password?</Text>
-                  </TouchableOpacity>
-                </Link>
-              </Animated.View>
-
-              <Animated.View entering={FadeInUp.delay(1000).duration(1000)}>
-                <Button
-                  title="Sign In"
-                  onPress={handleSubmit}
-                  loading={isSubmitting}
-                  disabled={isSubmitting}
-                  fullWidth
-                  size="large"
-                  style={styles.loginButton}
-                />
-              </Animated.View>
-            </BlurView>
-          </Animated.View>
-
-          <Animated.View 
-            entering={FadeIn.delay(1100).duration(1000)} 
-            style={styles.signupContainer}
-          >
-            <Text style={[styles.signupText, { color: colors.textDim }]}>Don't have an account?</Text>
-            <Link href="/(auth)/signup" asChild>
-              <TouchableOpacity>
-                <Text style={[styles.signupLink, { color: colors.tint }]}>Sign Up</Text>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed" size={20} color="#666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                {showPassword ? 
+                  <Ionicons name="eye-off" size={20} color="#666" /> : 
+                  <Ionicons name="eye" size={20} color="#666" />
+                }
               </TouchableOpacity>
-            </Link>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginButtonText}>Login</Text>}
+          </TouchableOpacity>
+
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={handleRegister}>
+              <Text style={[styles.registerLink, { color: Colors[colorScheme ?? "light"].tint }]}>Register</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  keyboardAvoidView: {
-    flex: 1,
+    backgroundColor: "#fff",
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 24,
-  },
-  headerContainer: {
-    alignItems: "center",
-    marginBottom: 32,
+    justifyContent: "center",
+    padding: 20,
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 40,
   },
-  logoBlur: {
-    padding: 20,
-    borderRadius: 24,
-    overflow: 'hidden',
-    marginBottom: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  logo: {
+    width: 100,
+    height: 100,
+    resizeMode: "contain",
   },
   appName: {
-    ...globalStyles.h2,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 28,
+    fontWeight: "bold",
+    marginTop: 10,
+    color: "#0891b2",
   },
-  title: {
-    ...globalStyles.h1,
-    fontFamily: 'Poppins-Bold',
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    ...globalStyles.bodyLarge,
-    fontFamily: 'Poppins-Regular',
-    marginBottom: 32,
-    textAlign: "center",
-    opacity: 0.8,
+  tagline: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 5,
   },
   formContainer: {
-    marginBottom: 24,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  formBlur: {
-    padding: 24,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
   },
-  forgotPasswordContainer: {
-    alignItems: "flex-end",
-    marginTop: 8,
+  inputContainer: {
     marginBottom: 16,
   },
+  label: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: "#666",
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+  },
+  eyeIcon: {
+    padding: 10,
+  },
+  forgotPassword: {
+    alignSelf: "flex-end",
+    marginBottom: 20,
+  },
   forgotPasswordText: {
-    ...globalStyles.bodyMedium,
-    fontFamily: 'Poppins-SemiBold',
+    color: "#0891b2",
+    fontSize: 14,
   },
   loginButton: {
-    marginTop: 8,
+    backgroundColor: "#0891b2",
+    borderRadius: 8,
+    padding: 15,
+    alignItems: "center",
+    marginBottom: 20,
   },
-  signupContainer: {
+  loginButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  registerContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
-    paddingVertical: 8,
   },
-  signupText: {
-    ...globalStyles.bodyMedium,
-    fontFamily: 'Poppins-Regular',
+  registerText: {
+    color: "#666",
   },
-  signupLink: {
-    ...globalStyles.bodyMedium,
-    fontFamily: 'Poppins-SemiBold',
-    marginLeft: 4,
+  registerLink: {
+    color: "#0891b2",
+    fontWeight: "bold",
   },
 })

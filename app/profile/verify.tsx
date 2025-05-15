@@ -1,277 +1,232 @@
 "use client"
 
 import { useState } from "react"
-import {
-  StyleSheet,
-  ScrollView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native"
-import { router } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { useColorScheme } from "react-native"
-import * as ImagePicker from "expo-image-picker"
-import { MaterialIcons } from "@expo/vector-icons"
-import { Picker } from "@react-native-picker/picker"
+import { StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, View as RNView } from "react-native"
+import { Text, View } from "@/components/themed"
+import { useRouter } from "expo-router"
+import { useSession } from "@/providers/session-provider"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
-import { useNetwork } from "@/providers/network-provider"
-import { useAuth } from "@/providers/auth-provider"
-import { compressImage } from "@/utils/image-utils"
-import OfflineBanner from "@/components/offline-banner"
+import { ArrowLeft, Camera, Upload, CheckCircle, AlertCircle, Clock } from "lucide-react"
+import * as ImagePicker from "expo-image-picker"
+import { uploadStudentId } from "@/services/profile"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getUserProfile } from "@/services/profile"
 
-export default function VerifyAccountScreen() {
+export default function VerifyStudentScreen() {
+  const { session } = useSession()
   const colorScheme = useColorScheme()
-  const { isConnected } = useNetwork()
-  const { user, updateUserProfile } = useAuth()
-  const [studentId, setStudentId] = useState("")
-  const [university, setUniversity] = useState("")
-  const [idCardImage, setIdCardImage] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const [uploading, setUploading] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
-  // Mock universities for demo
-  const universities = [
-    "Select University",
-    "University of Example",
-    "State University",
-    "Tech Institute",
-    "Liberal Arts College",
-    "Community College",
-  ]
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ["profile"],
+    queryFn: getUserProfile,
+    enabled: !!session,
+  })
 
-  const pickIdCardImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    })
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const compressed = await compressImage(result.assets[0].uri)
-      setIdCardImage(compressed)
-    }
-  }
-
-  const handleSubmit = async () => {
-    if (!user) {
-      Alert.alert("Error", "You must be logged in to verify your account")
-      router.push("/(auth)/login")
-      return
-    }
-
-    if (!studentId.trim()) {
-      Alert.alert("Error", "Please enter your student ID")
-      return
-    }
-
-    if (!university || university === "Select University") {
-      Alert.alert("Error", "Please select your university")
-      return
-    }
-
-    if (!idCardImage) {
-      Alert.alert("Error", "Please upload a photo of your student ID card")
-      return
-    }
-
-    if (!isConnected) {
-      Alert.alert("Error", "Cannot submit verification while offline")
-      return
-    }
-
-    setLoading(true)
+  const pickImage = async () => {
     try {
-      // In a real app, this would send the verification request to the server
-      // For demo purposes, we'll simulate a successful verification after a delay
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Update user profile with verification status
-      // In a real app, this would be pending until approved by an admin
-      await updateUserProfile({
-        ...user,
-        isVerified: true,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
       })
 
-      Alert.alert(
-        "Verification Submitted",
-        "Your verification request has been submitted and is pending review by our team.",
-        [{ text: "OK", onPress: () => router.back() }],
-      )
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri)
+      }
     } catch (error) {
-      console.error("Error submitting verification:", error)
-      Alert.alert("Error", "Failed to submit verification request")
-    } finally {
-      setLoading(false)
+      console.error("Error picking image:", error)
+      Alert.alert("Error", "Failed to pick image. Please try again.")
     }
   }
 
-  if (!user) {
+  const takePhoto = async () => {
+    try {
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync()
+
+      if (cameraPermission.status !== "granted") {
+        Alert.alert("Permission required", "Camera permission is required to take photos.")
+        return
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri)
+      }
+    } catch (error) {
+      console.error("Error taking photo:", error)
+      Alert.alert("Error", "Failed to take photo. Please try again.")
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!selectedImage || !session) return
+
+    try {
+      setUploading(true)
+      await uploadStudentId(selectedImage)
+      queryClient.invalidateQueries({ queryKey: ["profile"] })
+      Alert.alert("Success", "Your student ID has been uploaded for verification. We will review it shortly.", [
+        { text: "OK", onPress: () => router.back() },
+      ])
+    } catch (error) {
+      console.error("Error uploading student ID:", error)
+      Alert.alert("Error", "Failed to upload student ID. Please try again.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-        <View style={styles.notLoggedInContainer}>
-          <MaterialIcons name="verified-user" size={80} color={Colors[colorScheme ?? "light"].textDim} />
-          <Text style={[styles.notLoggedInText, { color: Colors[colorScheme ?? "light"].text }]}>
-            You need to be logged in to verify your account
-          </Text>
-          <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
-            onPress={() => router.push("/(auth)/login")}
-          >
-            <Text style={styles.loginButtonText}>Log In</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} />
+      </View>
     )
   }
 
-  if (user.isVerified) {
+  if (profile?.verification_status === "verified" || profile?.is_verified) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-        <View style={styles.verifiedContainer}>
-          <MaterialIcons name="verified-user" size={80} color="#4CAF50" />
-          <Text style={[styles.verifiedText, { color: Colors[colorScheme ?? "light"].text }]}>
-            Your account is already verified
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Student Verification</Text>
+          <View style={styles.backButton} />
+        </View>
+
+        <View style={styles.verificationStatus}>
+          <CheckCircle size={60} color="#10b981" />
+          <Text style={styles.verificationTitle}>Verified Student</Text>
+          <Text style={styles.verificationText}>
+            Your student ID has been verified. You now have full access to all features.
           </Text>
-          <Text style={[styles.verifiedSubText, { color: Colors[colorScheme ?? "light"].textDim }]}>
-            You have full access to all features of Campus Market
-          </Text>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.backButtonText}>Go Back</Text>
+          <TouchableOpacity style={styles.backToProfileButton} onPress={() => router.back()}>
+            <Text style={styles.backToProfileText}>Back to Profile</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
+    )
+  }
+
+  if (profile?.verification_status === "pending") {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Student Verification</Text>
+          <View style={styles.backButton} />
+        </View>
+
+        <View style={styles.verificationStatus}>
+          <Clock size={60} color="#f59e0b" />
+          <Text style={styles.verificationTitle}>Verification Pending</Text>
+          <Text style={styles.verificationText}>
+            Your student ID is currently being reviewed. This process usually takes 1-2 business days.
+          </Text>
+          <TouchableOpacity style={styles.backToProfileButton} onPress={() => router.back()}>
+            <Text style={styles.backToProfileText}>Back to Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  }
+
+  if (profile?.verification_status === "rejected") {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Student Verification</Text>
+          <View style={styles.backButton} />
+        </View>
+
+        <View style={styles.verificationStatus}>
+          <AlertCircle size={60} color="#ef4444" />
+          <Text style={styles.verificationTitle}>Verification Rejected</Text>
+          <Text style={styles.verificationText}>
+            Your student ID verification was rejected. Please upload a clearer image of your valid student ID.
+          </Text>
+          <TouchableOpacity style={styles.tryAgainButton} onPress={() => setSelectedImage(null)}>
+            <Text style={styles.tryAgainText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     )
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
-      {!isConnected && <OfflineBanner />}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Student Verification</Text>
+        <View style={styles.backButton} />
+      </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidView}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Text style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}>Verify Your Account</Text>
-          <Text style={[styles.subtitle, { color: Colors[colorScheme ?? "light"].textDim }]}>
-            Verification gives you access to all features and builds trust with other users
-          </Text>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.title}>Verify Your Student ID</Text>
+        <Text style={styles.description}>
+          To access all features and get verified status, please upload a clear photo of your student ID card.
+        </Text>
 
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: Colors[colorScheme ?? "light"].text }]}>Student ID</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: Colors[colorScheme ?? "light"].cardBackground,
-                  color: Colors[colorScheme ?? "light"].text,
-                  borderColor: Colors[colorScheme ?? "light"].border,
-                },
-              ]}
-              placeholder="Enter your student ID number"
-              placeholderTextColor={Colors[colorScheme ?? "light"].textDim}
-              value={studentId}
-              onChangeText={setStudentId}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: Colors[colorScheme ?? "light"].text }]}>University</Text>
-            <View
-              style={[
-                styles.pickerContainer,
-                {
-                  backgroundColor: Colors[colorScheme ?? "light"].cardBackground,
-                  borderColor: Colors[colorScheme ?? "light"].border,
-                },
-              ]}
-            >
-              <Picker
-                selectedValue={university}
-                onValueChange={(itemValue) => setUniversity(itemValue)}
-                style={{ color: Colors[colorScheme ?? "light"].text }}
-              >
-                {universities.map((uni) => (
-                  <Picker.Item key={uni} label={uni} value={uni} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: Colors[colorScheme ?? "light"].text }]}>Student ID Card Photo</Text>
-            <Text style={[styles.helperText, { color: Colors[colorScheme ?? "light"].textDim }]}>
-              Please upload a clear photo of your student ID card
-            </Text>
-
-            {idCardImage ? (
-              <View style={styles.idCardPreviewContainer}>
-                <Image source={{ uri: idCardImage }} style={styles.idCardPreview} />
-                <TouchableOpacity style={styles.changePhotoButton} onPress={pickIdCardImage}>
-                  <Text style={[styles.changePhotoText, { color: Colors[colorScheme ?? "light"].tint }]}>
-                    Change Photo
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[
-                  styles.uploadButton,
-                  {
-                    backgroundColor: Colors[colorScheme ?? "light"].cardBackground,
-                    borderColor: Colors[colorScheme ?? "light"].border,
-                  },
-                ]}
-                onPress={pickIdCardImage}
-              >
-                <MaterialIcons name="add-a-photo" size={32} color={Colors[colorScheme ?? "light"].tint} />
-                <Text style={[styles.uploadButtonText, { color: Colors[colorScheme ?? "light"].text }]}>
-                  Upload ID Card Photo
-                </Text>
+        <View style={styles.imageContainer}>
+          {selectedImage ? (
+            <RNView style={styles.selectedImageContainer}>
+              <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+              <TouchableOpacity style={styles.changeImageButton} onPress={() => setSelectedImage(null)}>
+                <Text style={styles.changeImageText}>Change Image</Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </RNView>
+          ) : (
+            <RNView style={styles.imageActions}>
+              <TouchableOpacity style={styles.imageActionButton} onPress={pickImage}>
+                <Upload size={32} color="#fff" />
+                <Text style={styles.imageActionText}>Upload from Gallery</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.imageActionButton} onPress={takePhoto}>
+                <Camera size={32} color="#fff" />
+                <Text style={styles.imageActionText}>Take a Photo</Text>
+              </TouchableOpacity>
+            </RNView>
+          )}
+        </View>
 
-          <View style={styles.privacyContainer}>
-            <MaterialIcons name="security" size={24} color={Colors[colorScheme ?? "light"].textDim} />
-            <Text style={[styles.privacyText, { color: Colors[colorScheme ?? "light"].textDim }]}>
-              Your ID card information is securely stored and only used for verification purposes. It will not be shared
-              with other users.
-            </Text>
-          </View>
+        <View style={styles.guidelinesContainer}>
+          <Text style={styles.guidelinesTitle}>Guidelines:</Text>
+          <Text style={styles.guidelineItem}>• Ensure all four corners of your ID are visible</Text>
+          <Text style={styles.guidelineItem}>• Make sure the text on your ID is readable</Text>
+          <Text style={styles.guidelineItem}>• Your ID must be valid and not expired</Text>
+          <Text style={styles.guidelineItem}>• Avoid glare or shadows on the ID</Text>
+        </View>
 
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              { backgroundColor: Colors[colorScheme ?? "light"].tint },
-              loading && styles.disabledButton,
-              (!studentId || !university || university === "Select University" || !idCardImage) &&
-                styles.disabledButton,
-            ]}
-            onPress={handleSubmit}
-            disabled={
-              loading || !studentId || !university || university === "Select University" || !idCardImage || !isConnected
-            }
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
+        {selectedImage && (
+          <TouchableOpacity style={styles.uploadButton} onPress={handleUpload} disabled={uploading}>
+            {uploading ? (
+              <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <>
-                <MaterialIcons name="verified-user" size={20} color="white" />
-                <Text style={styles.submitButtonText}>Submit for Verification</Text>
-              </>
+              <Text style={styles.uploadButtonText}>Submit for Verification</Text>
             )}
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        )}
+      </ScrollView>
+    </View>
   )
 }
 
@@ -279,149 +234,154 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardAvoidView: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  scrollContainer: {
     flex: 1,
   },
-  scrollContent: {
+  contentContainer: {
     padding: 16,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: "center",
   },
-  subtitle: {
+  description: {
     fontSize: 16,
+    color: "#666",
+    marginBottom: 24,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  imageContainer: {
     marginBottom: 24,
   },
-  formGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  helperText: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderRadius: 8,
-    height: 48,
-    justifyContent: "center",
-  },
-  uploadButton: {
-    height: 160,
-    borderWidth: 1,
-    borderRadius: 8,
-    borderStyle: "dashed",
-    justifyContent: "center",
+  selectedImageContainer: {
     alignItems: "center",
   },
-  uploadButtonText: {
-    fontSize: 16,
-    marginTop: 8,
-  },
-  idCardPreviewContainer: {
-    alignItems: "center",
-  },
-  idCardPreview: {
+  selectedImage: {
     width: "100%",
     height: 200,
     borderRadius: 8,
-    resizeMode: "contain",
+    marginBottom: 12,
   },
-  changePhotoButton: {
+  changeImageButton: {
+    backgroundColor: "#f5f5f5",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  changeImageText: {
+    color: "#0891b2",
+    fontWeight: "bold",
+  },
+  imageActions: {
+    flexDirection: "column",
+    gap: 16,
+  },
+  imageActionButton: {
+    backgroundColor: "#0891b2",
+    borderRadius: 8,
+    padding: 20,
+    alignItems: "center",
+  },
+  imageActionText: {
+    color: "#fff",
     marginTop: 8,
+    fontWeight: "bold",
   },
-  changePhotoText: {
+  guidelinesContainer: {
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+  },
+  guidelinesTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  guidelineItem: {
     fontSize: 14,
-    fontWeight: "500",
+    marginBottom: 6,
+    lineHeight: 20,
   },
-  privacyContainer: {
-    flexDirection: "row",
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-    padding: 12,
+  uploadButton: {
+    backgroundColor: "#0891b2",
     borderRadius: 8,
-    marginBottom: 24,
-  },
-  privacyText: {
-    fontSize: 12,
-    marginLeft: 8,
-    flex: 1,
-  },
-  submitButton: {
-    height: 56,
-    borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
+    padding: 16,
     alignItems: "center",
-    marginBottom: 40,
   },
-  submitButtonText: {
-    color: "white",
-    fontSize: 18,
+  uploadButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "bold",
-    marginLeft: 8,
   },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  notLoggedInContainer: {
+  verificationStatus: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
-  notLoggedInText: {
-    fontSize: 18,
-    textAlign: "center",
+  verificationTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
     marginTop: 16,
+    marginBottom: 12,
+  },
+  verificationText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 22,
     marginBottom: 24,
   },
-  loginButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+  backToProfileButton: {
+    backgroundColor: "#0891b2",
     borderRadius: 8,
-  },
-  loginButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  verifiedContainer: {
-    flex: 1,
-    justifyContent: "center",
+    padding: 16,
     alignItems: "center",
-    padding: 24,
+    width: "100%",
   },
-  verifiedText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 16,
-  },
-  verifiedSubText: {
+  backToProfileText: {
+    color: "#fff",
     fontSize: 16,
-    textAlign: "center",
-    marginTop: 8,
-    marginBottom: 24,
+    fontWeight: "bold",
   },
-  backButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+  tryAgainButton: {
+    backgroundColor: "#ef4444",
     borderRadius: 8,
+    padding: 16,
+    alignItems: "center",
+    width: "100%",
   },
-  backButtonText: {
-    color: "white",
+  tryAgainText: {
+    color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
   },

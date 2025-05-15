@@ -21,6 +21,7 @@ import { TextInput } from "react-native"
 import AuthGuard from "@/components/auth-guard"
 import { StatusBar } from "expo-status-bar"
 import Colors from "@/constants/Colors"
+import { Ionicons } from '@expo/vector-icons'
 
 export default function ForgotPasswordScreen() {
   return (
@@ -102,7 +103,7 @@ function ForgotPasswordContent() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#0891b2" />
+          <Ionicons name="arrow-back" size={24} color="#0891b2" />
         </TouchableOpacity>
 
         <View style={styles.logoContainer}>
@@ -128,7 +129,7 @@ function ForgotPasswordContent() {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email</Text>
               <View style={styles.inputWrapper}>
-                <Mail size={20} color="#666" style={styles.inputIcon} />
+                <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your email"
@@ -168,7 +169,7 @@ function ForgotPasswordContent() {
               },
             ]}
           >
-            <CheckCircle size={80} color="#10b981" style={styles.successIcon} />
+            <Ionicons name="checkmark-circle" size={80} color="#10b981" style={styles.successIcon} />
             <Text style={styles.successTitle}>Email Sent</Text>
             <Text style={styles.successText}>
               We've sent a password reset link to {email}. Please check your email and follow the instructions.

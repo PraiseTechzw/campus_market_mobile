@@ -11,7 +11,7 @@ import AuthGuard from "@/components/auth-guard"
 
 export default function CreateListingScreen() {
   return (
-    <AuthGuard requireAuth={true} requireOnboarding={true}>
+    <AuthGuard requireAuth={true} requireOnboarding={false}>
       <CreateListingContent />
     </AuthGuard>
   )

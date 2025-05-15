@@ -25,7 +25,7 @@ import { createListing } from "@/services/marketplace"
 
 export default function QuickCreateListingScreen() {
   return (
-    <AuthGuard requireAuth={true} requireOnboarding={true}>
+    <AuthGuard requireAuth={true} requireOnboarding={false}>
       <QuickCreateListingContent />
     </AuthGuard>
   )

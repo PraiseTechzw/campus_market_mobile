@@ -12,10 +12,11 @@ import * as ImagePicker from "expo-image-picker"
 import { useQuery } from "@tanstack/react-query"
 import { getListingCategories } from "@/services/marketplace"
 import { getCampuses } from "@/services/campus"
+import React from "react"
 
 export default function BasicCreateListingScreen() {
   return (
-    <AuthGuard requireAuth={true} requireOnboarding={true}>
+    <AuthGuard requireAuth={true} requireOnboarding={false}>
       <BasicCreateListingContent />
     </AuthGuard>
   )

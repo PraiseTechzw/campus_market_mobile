@@ -2,7 +2,9 @@ import { StyleSheet, ScrollView, TouchableOpacity, Text, View } from "react-nati
 import { useQuery } from "@tanstack/react-query"
 import { getAccommodationTypes } from "@/services/accommodation"
 import type { AccommodationType } from "@/types"
-import { Home, Users, Building, Building2 } from "lucide-react"
+import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons"
+import Colors from "@/constants/Colors"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 
 type AccommodationTypeFilterProps = {
   selectedType: AccommodationType | null
@@ -15,20 +17,23 @@ export default function AccommodationTypeFilter({ selectedType, onSelectType }: 
     queryFn: getAccommodationTypes,
   })
 
+  const colorScheme = useColorScheme()
+  const tintColor = Colors[colorScheme ?? "light"].tint
+
   const getIconForType = (typeName: string) => {
     switch (typeName.toLowerCase()) {
       case "single room":
-        return <Home size={24} color="#0891b2" />
+        return <FontAwesome5 name="home" size={24} color={tintColor} />
       case "2-share":
       case "3-share":
-        return <Users size={24} color="#0891b2" />
+        return <FontAwesome5 name="users" size={24} color={tintColor} />
       case "self-contained":
-        return <Building size={24} color="#0891b2" />
+        return <FontAwesome5 name="building" size={24} color={tintColor} />
       case "apartment":
       case "house":
-        return <Building2 size={24} color="#0891b2" />
+        return <MaterialIcons name="apartment" size={24} color={tintColor} />
       default:
-        return <Home size={24} color="#0891b2" />
+        return <FontAwesome5 name="home" size={24} color={tintColor} />
     }
   }
 
@@ -44,7 +49,7 @@ export default function AccommodationTypeFilter({ selectedType, onSelectType }: 
           onPress={() => onSelectType(null)}
         >
           <View style={styles.iconContainer}>
-            <Building2 size={24} color="#0891b2" />
+            <MaterialIcons name="apartment" size={24} color={tintColor} />
           </View>
           <Text style={[styles.typeText, !selectedType && styles.selectedTypeText]}>All</Text>
         </TouchableOpacity>
@@ -83,7 +88,7 @@ const styles = StyleSheet.create({
   selectedTypeItem: {
     backgroundColor: "#e6f7ff",
     borderWidth: 1,
-    borderColor: "#0891b2",
+    borderColor: "#10b981",
   },
   iconContainer: {
     marginBottom: 4,
@@ -95,6 +100,6 @@ const styles = StyleSheet.create({
   },
   selectedTypeText: {
     fontWeight: "bold",
-    color: "#0891b2",
+    color: "#10b981",
   },
 })

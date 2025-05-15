@@ -451,6 +451,198 @@ export interface Database {
           created_at?: string
         }
       }
+      user_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          theme_preference: string
+          notification_preferences: Json
+          language_preference: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          theme_preference?: string
+          notification_preferences?: Json
+          language_preference?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          theme_preference?: string
+          notification_preferences?: Json
+          language_preference?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      events: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          location: string
+          start_date: string
+          end_date: string | null
+          campus_id: string | null
+          organizer_id: string | null
+          image_url: string | null
+          is_featured: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          location: string
+          start_date: string
+          end_date?: string | null
+          campus_id?: string | null
+          organizer_id?: string | null
+          image_url?: string | null
+          is_featured?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          location?: string
+          start_date?: string
+          end_date?: string | null
+          campus_id?: string | null
+          organizer_id?: string | null
+          image_url?: string | null
+          is_featured?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      event_participants: {
+        Row: {
+          id: string
+          event_id: string
+          user_id: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          user_id: string
+          status: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          user_id?: string
+          status?: string
+          created_at?: string
+        }
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          body: string
+          data: Json | null
+          is_read: boolean
+          type: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          body: string
+          data?: Json | null
+          is_read?: boolean
+          type: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          body?: string
+          data?: Json | null
+          is_read?: boolean
+          type?: string
+          created_at?: string
+        }
+      }
+      reports: {
+        Row: {
+          id: string
+          reporter_id: string
+          listing_id: string | null
+          accommodation_id: string | null
+          user_id: string | null
+          reason: string
+          details: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          reporter_id: string
+          listing_id?: string | null
+          accommodation_id?: string | null
+          user_id?: string | null
+          reason: string
+          details?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          reporter_id?: string
+          listing_id?: string | null
+          accommodation_id?: string | null
+          user_id?: string | null
+          reason?: string
+          details?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      analytics_events: {
+        Row: {
+          id: string
+          user_id: string | null
+          event_name: string
+          event_data: Json | null
+          device_info: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          event_name: string
+          event_data?: Json | null
+          device_info?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          event_name?: string
+          event_data?: Json | null
+          device_info?: Json | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       participants: {

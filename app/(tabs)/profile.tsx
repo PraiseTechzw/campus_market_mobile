@@ -1,20 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native"
+import { StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Settings } from "react-native"
 import { Text, View } from "@/components/themed"
 import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
 import { useRouter } from "expo-router"
 import { supabase } from "@/lib/supabase"
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
 import * as ImagePicker from "expo-image-picker"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getUserProfile, updateUserProfile } from "@/services/profile"
 import { Switch } from "react-native"
 import { useTheme } from "@/components/theme-provider"
-
+import { Ionicons } from "@expo/vector-icons"
 export default function ProfileScreen() {
   const { session, signOut } = useSession()
   const colorScheme = useColorScheme()
@@ -111,7 +110,7 @@ export default function ProfileScreen() {
             <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <FontAwesome5 name="user" size={40} color="#fff" />
+              <Ionicons name="person" size={40} color="#fff" />
             </View>
           )}
           <View style={styles.cameraIcon}>
@@ -139,12 +138,12 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account</Text>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/edit")}>
-          <FontAwesome5 name="user" size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="person" size={20} color={Colors[colorScheme ?? "light"].text} />
           <Text style={styles.menuItemText}>Edit Profile</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/listings")}>
-          <FontAwesome5 name="shopping-bag" size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="bag-handle" size={20} color={Colors[colorScheme ?? "light"].text} />
           <Text style={styles.menuItemText}>My Listings</Text>
         </TouchableOpacity>
 
@@ -159,7 +158,7 @@ export default function ProfileScreen() {
 
         <View style={styles.menuItem}>
           {theme === "dark" ? (
-            <Ionicons name="moon" size={20} color={Colors[colorScheme ?? "light"].text} />
+                <Ionicons name="moon" size={20} color={Colors[colorScheme ?? "light"].text} />
           ) : (
             <Ionicons name="sunny" size={20} color={Colors[colorScheme ?? "light"].text} />
           )}

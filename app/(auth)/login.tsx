@@ -19,10 +19,10 @@ import { supabase } from "@/lib/supabase"
 import { TextInput } from "react-native"
 import { useSession } from "@/providers/session-provider"
 import { Alert } from "react-native"
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
 import AuthGuard from "@/components/auth-guard"
 import { StatusBar } from "expo-status-bar"
 import Colors from "@/constants/Colors"
+import { Ionicons } from "@expo/vector-icons"
 
 export default function LoginScreen() {
   return (
@@ -162,10 +162,7 @@ function LoginContent() {
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                {showPassword ? 
-                  <Ionicons name="eye-off" size={20} color="#666" /> : 
-                  <Ionicons name="eye" size={20} color="#666" />
-                }
+                {showPassword ? <Ionicons name="eye-off" size={20} color="#666" /> : <Ionicons name="eye" size={20} color="#666" />}
               </TouchableOpacity>
             </View>
           </View>

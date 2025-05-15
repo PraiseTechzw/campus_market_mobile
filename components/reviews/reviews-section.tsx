@@ -11,9 +11,9 @@ import Colors from "@/constants/Colors"
 import ReviewCard from "./review-card"
 import ReviewForm from "./review-form"
 import RatingStars from "./rating-stars"
-import { ChevronDown, ChevronUp } from "lucide-react"
 import { Alert } from "react-native"
-
+import React from "react"
+import {Ionicons} from ""
 type ReviewsSectionProps = {
   userId?: string
   listingId?: string | number

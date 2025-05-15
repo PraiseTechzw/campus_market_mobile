@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme as useNativeColorSch  useContext, useEffect, useState } from 'react';
-import { useColorScheme as useNativeColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useContext, createContext, useState, useEffect } from 'react';
+import { useColorScheme as useNativeColorScheme } from 'react-native';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -59,3 +58,4 @@ export function useTheme() {
   }
   return context;
 }
+

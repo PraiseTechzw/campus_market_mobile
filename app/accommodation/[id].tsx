@@ -10,10 +10,10 @@ import { createConversation } from "@/services/messages"
 import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
-import { ArrowLeft, MessageCircle, Share2, Heart, MapPin, Bed, Bath, Check } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { checkIfFavorite, addToFavorites, removeFromFavorites } from "@/services/favorites"
 import ReviewsSection from "@/components/reviews/reviews-section"
+import { Ionicons } from "@expo/vector-icons"
 
 export default function AccommodationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -142,7 +142,7 @@ export default function AccommodationDetailScreen() {
 
         {/* Back button */}
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
 
         {/* Content */}
@@ -151,13 +151,13 @@ export default function AccommodationDetailScreen() {
           <Text style={styles.title}>{accommodation.title}</Text>
 
           <View style={styles.locationRow}>
-            <MapPin size={16} color="#666" />
+              <Ionicons name = 'MapPin' size={16} color="#666" />
             <Text style={styles.location}>{accommodation.address}</Text>
           </View>
 
           <View style={styles.detailsRow}>
             <View style={styles.detailItem}>
-              <Bed size={16} color="#666" />
+              <Ionicons name='bed' size={16} color="#666" />
               <Text style={styles.detailText}>
                 {accommodation.bedrooms} {accommodation.bedrooms === 1 ? "Bedroom" : "Bedrooms"}
               </Text>

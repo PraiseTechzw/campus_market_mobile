@@ -4,12 +4,18 @@ import { useColorScheme as useNativeColorScheme } from "react-native"
 import { useTheme } from "@/components/theme-provider"
 
 export function useColorScheme() {
-  const { theme } = useTheme()
   const nativeColorScheme = useNativeColorScheme()
-
-  if (theme === "system") {
+  
+  try {
+    const { theme } = useTheme()
+    
+    if (theme === "system") {
+      return nativeColorScheme
+    }
+    
+    return theme
+  } catch (error) {
+    // Fallback to native color scheme if ThemeProvider is not available
     return nativeColorScheme
   }
-
-  return theme
 }

@@ -21,8 +21,7 @@ import { TextInput } from "react-native"
 import AuthGuard from "@/components/auth-guard"
 import { StatusBar } from "expo-status-bar"
 import Colors from "@/constants/Colors"
-import { Ionicons } from '@expo/vector-icons'
-
+import { Ionicons } from "@expo/vector-icons"
 export default function ForgotPasswordScreen() {
   return (
     <AuthGuard requireAuth={false}>

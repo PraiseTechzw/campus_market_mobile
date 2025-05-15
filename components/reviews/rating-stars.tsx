@@ -1,5 +1,5 @@
 import { StyleSheet, View, TouchableOpacity } from "react-native"
-import { Star } from "lucide-react"
+import { MaterialIcons } from "@expo/vector-icons"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
 
@@ -36,12 +36,7 @@ export default function RatingStars({
           disabled={!interactive}
           style={styles.starContainer}
         >
-          <Star
-            size={size}
-            color={starColor}
-            fill={star <= Math.round(rating) ? starColor : "transparent"}
-            strokeWidth={1.5}
-          />
+          <MaterialIcons name={star <= Math.round(rating) ? "star" : "star-border"} size={size} color={starColor} />
         </TouchableOpacity>
       ))}
     </View>

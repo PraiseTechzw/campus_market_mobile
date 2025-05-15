@@ -10,11 +10,10 @@ import { createConversation } from "@/services/messages"
 import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
+import { ArrowLeft, MessageCircle, Share2, Heart, MapPin } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { checkIfFavorite, addToFavorites, removeFromFavorites } from "@/services/favorites"
 import ReviewsSection from "@/components/reviews/reviews-section"
-import { Ionicons } from "@expo/vector-icons"
-import React from "react"
 
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -147,7 +146,7 @@ export default function ListingDetailScreen() {
 
         {/* Back button */}
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
 
         {/* Content */}
@@ -156,7 +155,7 @@ export default function ListingDetailScreen() {
           <Text style={styles.title}>{listing.title}</Text>
 
           <View style={styles.locationRow}>
-            <Ionicons name="location" size={16} color="#666" />
+            <MapPin size={16} color="#666" />
             <Text style={styles.location}>{listing.location}</Text>
             <Text style={styles.time}>{formatDistanceToNow(new Date(listing.created_at), { addSuffix: true })}</Text>
           </View>
@@ -199,7 +198,7 @@ export default function ListingDetailScreen() {
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Category</Text>
-                <Text style={styles.detailValue}>{listing.category?.name || "Not specified"}</Text>
+              <Text style={styles.detailValue}>{listing.category?.name || "Not specified"}</Text>
             </View>
           </View>
 
@@ -211,10 +210,14 @@ export default function ListingDetailScreen() {
       {/* Action buttons */}
       <View style={styles.actionContainer}>
         <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-          <Ionicons name="share" size={20} color="#666" />
+          <Share2 size={20} color="#666" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton} onPress={toggleFavorite}>
-          <Ionicons name="heart" size={20} color={favoriteStatus.isFavorite ? "#ef4444" : "#666"} />
+          <Heart
+            size={20}
+            color={favoriteStatus.isFavorite ? "#ef4444" : "#666"}
+            fill={favoriteStatus.isFavorite ? "#ef4444" : "transparent"}
+          />
         </TouchableOpacity>
         {!isOwnListing && (
           <TouchableOpacity style={styles.contactButton} onPress={handleContact} disabled={loading}>
@@ -222,7 +225,7 @@ export default function ListingDetailScreen() {
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Ionicons name="message-circle" size={20} color="#fff" style={styles.contactIcon} />
+                <MessageCircle size={20} color="#fff" style={styles.contactIcon} />
                 <Text style={styles.contactButtonText}>Contact Seller</Text>
               </>
             )}

@@ -153,3 +153,107 @@ export type ActivityFeedItem = {
   listing?: Listing
   accommodation?: Accommodation
 }
+
+export type UserPreferences = {
+  id: string | number
+  user_id: string
+  theme_preference: "light" | "dark" | "system"
+  notification_preferences: {
+    messages: boolean
+    listings: boolean
+    accommodations: boolean
+    events: boolean
+  }
+  language_preference: string
+  created_at: string
+  updated_at: string
+}
+
+export type Event = {
+  id: string | number
+  title: string
+  description?: string
+  location: string
+  start_date: string
+  end_date?: string
+  campus_id: string | number
+  organizer_id: string
+  image_url?: string
+  is_featured: boolean
+  created_at: string
+  updated_at: string
+  organizer?: {
+    first_name: string
+    last_name: string
+    avatar_url?: string
+  }
+}
+
+export type EventParticipant = {
+  id: string | number
+  event_id: string | number
+  user_id: string
+  status: "going" | "interested" | "not_going"
+  created_at: string
+}
+
+export type Notification = {
+  id: string | number
+  user_id: string
+  title: string
+  body: string
+  data?: any
+  is_read: boolean
+  type: "message" | "listing" | "accommodation" | "event" | "system"
+  created_at: string
+}
+
+export type Report = {
+  id: string | number
+  reporter_id: string
+  listing_id?: string | number
+  accommodation_id?: string | number
+  user_id?: string
+  reason: string
+  details?: string
+  status: "pending" | "resolved" | "rejected"
+  created_at: string
+  updated_at: string
+}
+
+export type AnalyticsEvent = {
+  id: string | number
+  user_id?: string
+  event_name: string
+  event_data?: any
+  device_info?: any
+  created_at: string
+}
+
+export type Order = {
+  id: string | number
+  user_id: string
+  listing_id?: string | number
+  accommodation_id?: string | number
+  status: "pending" | "processing" | "completed" | "cancelled" | "refunded"
+  amount: number
+  payment_method?: string
+  payment_status: "pending" | "paid" | "failed" | "refunded"
+  reference_number?: string
+  created_at: string
+  updated_at: string
+  listing?: Listing
+  accommodation?: Accommodation
+}
+
+export type OrderTransaction = {
+  id: string | number
+  order_id: string | number
+  transaction_type: "payment" | "refund" | "fee"
+  amount: number
+  status: "pending" | "success" | "failed"
+  provider?: string
+  provider_transaction_id?: string
+  metadata?: any
+  created_at: string
+}

@@ -9,7 +9,7 @@ import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
 import { useRouter } from "expo-router"
-import { ArrowLeft, Check } from "lucide-react"
+import { Ionicons } from "@expo/vector-icons"
 
 export default function InterestsScreen() {
   const { session } = useSession()
@@ -100,7 +100,7 @@ export default function InterestsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Interests</Text>
         <View style={styles.backButton} />
@@ -128,7 +128,7 @@ export default function InterestsScreen() {
                     <Text style={[styles.interestText, interested && styles.selectedInterestText]}>
                       {category.name}
                     </Text>
-                    {interested && <Check size={16} color="#fff" style={styles.checkIcon} />}
+                      {interested && <Ionicons name="check" size={16} color="#fff" style={styles.checkIcon} />}
                   </TouchableOpacity>
                 )
               })}
@@ -147,7 +147,7 @@ export default function InterestsScreen() {
                     onPress={() => toggleInterest(type.id, "accommodationType")}
                   >
                     <Text style={[styles.interestText, interested && styles.selectedInterestText]}>{type.name}</Text>
-                    {interested && <Check size={16} color="#fff" style={styles.checkIcon} />}
+                    {interested && <Ionicons name="check" size={16} color="#fff" style={styles.checkIcon} />}
                   </TouchableOpacity>
                 )
               })}

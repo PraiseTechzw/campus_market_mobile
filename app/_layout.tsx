@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SessionProvider } from "@/providers/session-provider"
+import { ToastProvider } from "@/providers/toast-provider"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AppState, type AppStateStatus } from "react-native"
 import NetInfo from "@react-native-community/netinfo"
@@ -146,13 +147,15 @@ function RootLayoutNav() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <SessionProvider>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "slide_from_bottom" }} />
-            <Stack.Screen name="onboarding" options={{ headerShown: false, animation: "fade" }} />
-            <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-          </Stack>
+          <ToastProvider>
+            <StatusBar style="auto" />
+            <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "slide_from_bottom" }} />
+              <Stack.Screen name="onboarding" options={{ headerShown: false, animation: "fade" }} />
+              <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+            </Stack>
+          </ToastProvider>
         </SessionProvider>
       </QueryClientProvider>
     </ThemeProvider>

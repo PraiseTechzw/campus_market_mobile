@@ -7,7 +7,7 @@ import { useRouter } from "expo-router"
 import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
-import { ArrowLeft, Camera, Upload, CheckCircle, AlertCircle, Clock } from "lucide-react"
+import { Ionicons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import { uploadStudentId } from "@/services/profile"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -100,14 +100,14 @@ export default function VerifyStudentScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Student Verification</Text>
           <View style={styles.backButton} />
         </View>
 
         <View style={styles.verificationStatus}>
-          <CheckCircle size={60} color="#10b981" />
+          <Ionicons name="checkmark-circle" size={60} color="#10b981" />
           <Text style={styles.verificationTitle}>Verified Student</Text>
           <Text style={styles.verificationText}>
             Your student ID has been verified. You now have full access to all features.
@@ -125,14 +125,14 @@ export default function VerifyStudentScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Student Verification</Text>
           <View style={styles.backButton} />
         </View>
 
         <View style={styles.verificationStatus}>
-          <Clock size={60} color="#f59e0b" />
+          <Ionicons name="time" size={60} color="#f59e0b" />
           <Text style={styles.verificationTitle}>Verification Pending</Text>
           <Text style={styles.verificationText}>
             Your student ID is currently being reviewed. This process usually takes 1-2 business days.
@@ -150,14 +150,14 @@ export default function VerifyStudentScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Student Verification</Text>
           <View style={styles.backButton} />
         </View>
 
         <View style={styles.verificationStatus}>
-          <AlertCircle size={60} color="#ef4444" />
+          <Ionicons name="alert-circle" size={60} color="#ef4444" />
           <Text style={styles.verificationTitle}>Verification Rejected</Text>
           <Text style={styles.verificationText}>
             Your student ID verification was rejected. Please upload a clearer image of your valid student ID.
@@ -174,7 +174,7 @@ export default function VerifyStudentScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Student Verification</Text>
         <View style={styles.backButton} />
@@ -197,11 +197,11 @@ export default function VerifyStudentScreen() {
           ) : (
             <RNView style={styles.imageActions}>
               <TouchableOpacity style={styles.imageActionButton} onPress={pickImage}>
-                <Upload size={32} color="#fff" />
+                <Ionicons name="image" size={32} color="#fff" />
                 <Text style={styles.imageActionText}>Upload from Gallery</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.imageActionButton} onPress={takePhoto}>
-                <Camera size={32} color="#fff" />
+                <Ionicons name="camera" size={32} color="#fff" />
                 <Text style={styles.imageActionText}>Take a Photo</Text>
               </TouchableOpacity>
             </RNView>

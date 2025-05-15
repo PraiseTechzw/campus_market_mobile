@@ -5,7 +5,9 @@ import { Text } from "@/components/themed"
 import type { ActivityFeedItem } from "@/types"
 import { formatDistanceToNow } from "date-fns"
 import { useRouter } from "expo-router"
-import { ShoppingBag, Building2, Bell, TrendingDown, Calendar } from "lucide-react"
+import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons"
+import Colors from "@/constants/Colors"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 
 type ActivityFeedItemProps = {
   item: ActivityFeedItem
@@ -13,6 +15,8 @@ type ActivityFeedItemProps = {
 
 export default function ActivityFeedItemCard({ item }: ActivityFeedItemProps) {
   const router = useRouter()
+  const colorScheme = useColorScheme()
+  const tintColor = Colors[colorScheme ?? "light"].tint
 
   const handlePress = () => {
     if (item.listing_id) {
@@ -31,19 +35,19 @@ export default function ActivityFeedItemCard({ item }: ActivityFeedItemProps) {
   const getIcon = () => {
     switch (item.activity_type) {
       case "new_listing":
-        return <ShoppingBag size={24} color="#0891b2" />
+        return <FontAwesome5 name="shopping-bag" size={24} color={tintColor} />
       case "price_drop":
-        return <TrendingDown size={24} color="#10b981" />
+        return <MaterialIcons name="trending-down" size={24} color="#10b981" />
       case "new_accommodation":
-        return <Building2 size={24} color="#0891b2" />
+        return <FontAwesome5 name="building" size={24} color={tintColor} />
       case "rent_drop":
-        return <TrendingDown size={24} color="#10b981" />
+        return <MaterialIcons name="trending-down" size={24} color="#10b981" />
       case "event":
-        return <Calendar size={24} color="#f59e0b" />
+        return <MaterialIcons name="event" size={24} color="#f59e0b" />
       case "announcement":
-        return <Bell size={24} color="#ef4444" />
+        return <MaterialIcons name="campaign" size={24} color="#ef4444" />
       default:
-        return <Bell size={24} color="#0891b2" />
+        return <MaterialIcons name="notifications" size={24} color={tintColor} />
     }
   }
 

@@ -23,25 +23,7 @@ import { getAccommodationTypes } from "@/services/accommodation"
 import { getCampuses } from "@/services/campus"
 import { updateUserProfile } from "@/services/profile"
 import { addUserInterest } from "@/services/interests"
-import {
-  Check,
-  ChevronRight,
-  User,
-  MapPin,
-  BookOpen,
-  ShoppingBag,
-  Shirt,
-  Sofa,
-  Utensils,
-  Briefcase,
-  Package,
-  Building,
-  Home,
-  Users,
-  Bath,
-  DoorOpen,
-  Sparkles,
-} from "lucide-react"
+import {Ionicons} from "@expo/vector-icons"
 import AuthGuard from "@/components/auth-guard"
 import { StatusBar } from "expo-status-bar"
 
@@ -49,23 +31,23 @@ const { width } = Dimensions.get("window")
 
 // Map category names to icons
 const categoryIcons: Record<string, any> = {
-  Books: BookOpen,
-  Electronics: ShoppingBag,
-  Clothing: Shirt,
-  Furniture: Sofa,
-  Food: Utensils,
-  Services: Briefcase,
-  Other: Package,
+    Books: Ionicons.book,
+  Electronics: Ionicons.laptop,
+  Clothing: Ionicons.shirt,
+  Furniture: Ionicons.bed,
+  Food: Ionicons.restaurant,
+  Services: Ionicons.briefcase,
+  Other: Ionicons.package,
 }
 
 // Map accommodation types to icons
 const accommodationIcons: Record<string, any> = {
-  "Single Room": Home,
-  "2-Share": Users,
-  "3-Share": Users,
-  "Self-Contained": Bath,
-  Apartment: Building,
-  House: DoorOpen,
+  "Single Room": Ionicons.home,
+  "2-Share": Ionicons.people,
+  "3-Share": Ionicons.people,
+  "Self-Contained": Ionicons.bath,
+  Apartment: Ionicons.building,
+  House: Ionicons.door,
 }
 
 export default function OnboardingScreen() {
@@ -146,32 +128,32 @@ function OnboardingContent() {
     {
       title: "Welcome to UniConnect",
       description: "Let's set up your profile to get the most out of the app.",
-      icon: Sparkles,
+      icon: Ionicons.sparkles,
     },
     {
       title: "Tell us about yourself",
       description: "Please enter your name so other students can recognize you.",
-      icon: User,
+      icon: Ionicons.person,
     },
     {
       title: "Select your campus",
       description: "Choose your university to see relevant listings and accommodations.",
-      icon: MapPin,
+        icon: Ionicons.map,
     },
     {
       title: "What are you interested in?",
       description: "Select categories you're interested in to get personalized recommendations.",
-      icon: ShoppingBag,
+      icon: Ionicons.bag,
     },
     {
       title: "What type of accommodation do you prefer?",
       description: "Select accommodation types you're interested in.",
-      icon: Building,
+      icon: Ionicons.building,
     },
     {
       title: "You're all set!",
       description: "Your profile is now complete. Enjoy using UniConnect!",
-      icon: Sparkles,
+      icon: Ionicons.sparkles,
     },
   ]
 

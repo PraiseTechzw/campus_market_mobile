@@ -20,10 +20,11 @@ import { getCampuses } from "@/services/campus"
 import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
-import { ArrowLeft, Camera, X, ChevronDown, Plus } from "lucide-react"
 import * as ImagePicker from "expo-image-picker"
 import { supabase } from "@/lib/supabase"
 import type { AccommodationType, Campus } from "@/types"
+import { Ionicons } from "@expo/vector-icons"
+import React from "react"
 
 export default function CreateAccommodationScreen() {
   const { session } = useSession()
@@ -254,7 +255,7 @@ export default function CreateAccommodationScreen() {
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name = 'arrow-back' size={24} color={Colors[colorScheme ?? "light"].text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Accommodation</Text>
         <View style={styles.backButton} />
@@ -302,7 +303,7 @@ export default function CreateAccommodationScreen() {
             <Text style={selectedType ? styles.selectText : styles.selectPlaceholder}>
               {selectedType ? selectedType.name : "Select accommodation type"}
             </Text>
-            <ChevronDown size={20} color="#666" />
+            <Ionicons name = 'chevron-down' size={20} color="#666" />
           </TouchableOpacity>
         </View>
 
@@ -346,7 +347,7 @@ export default function CreateAccommodationScreen() {
             <Text style={selectedCampus ? styles.selectText : styles.selectPlaceholder}>
               {selectedCampus ? selectedCampus.name : "Select a campus (optional)"}
             </Text>
-            <ChevronDown size={20} color="#666" />
+            <Ionicons name = 'chevron-down' size={20} color="#666" />
           </TouchableOpacity>
         </View>
 
@@ -357,7 +358,7 @@ export default function CreateAccommodationScreen() {
               <View key={index} style={styles.listItem}>
                 <Text style={styles.listItemText}>{amenity}</Text>
                 <TouchableOpacity style={styles.removeButton} onPress={() => removeAmenity(index)}>
-                  <X size={16} color="#fff" />
+                  <Ionicons name = 'close' size={16} color="#fff" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -370,7 +371,7 @@ export default function CreateAccommodationScreen() {
               onChangeText={setNewAmenity}
             />
             <TouchableOpacity style={styles.addButton} onPress={addAmenity}>
-              <Plus size={20} color="#fff" />
+              <Ionicons name = 'add' size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -382,7 +383,7 @@ export default function CreateAccommodationScreen() {
               <View key={index} style={styles.listItem}>
                 <Text style={styles.listItemText}>{rule}</Text>
                 <TouchableOpacity style={styles.removeButton} onPress={() => removeRule(index)}>
-                  <X size={16} color="#fff" />
+                    <Ionicons name = 'close' size={16} color="#fff" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -395,7 +396,7 @@ export default function CreateAccommodationScreen() {
               onChangeText={setNewRule}
             />
             <TouchableOpacity style={styles.addButton} onPress={addRule}>
-              <Plus size={20} color="#fff" />
+              <Ionicons name = 'add' size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -407,7 +408,7 @@ export default function CreateAccommodationScreen() {
               <View key={index} style={styles.imageWrapper}>
                 <Image source={{ uri: image }} style={styles.imagePreview} />
                 <TouchableOpacity style={styles.removeImageButton} onPress={() => removeImage(index)}>
-                  <X size={16} color="#fff" />
+                  <Ionicons name = 'close' size={16} color="#fff" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -419,7 +420,7 @@ export default function CreateAccommodationScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <>
-                      <Camera size={20} color="#fff" />
+                      <Ionicons name = 'camera' size={20} color="#fff" />
                       <Text style={styles.imageActionText}>Gallery</Text>
                     </>
                   )}
@@ -429,7 +430,7 @@ export default function CreateAccommodationScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <>
-                      <Camera size={20} color="#fff" />
+                      <Ionicons name = 'camera' size={20} color="#fff" />
                       <Text style={styles.imageActionText}>Camera</Text>
                     </>
                   )}

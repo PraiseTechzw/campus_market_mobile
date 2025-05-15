@@ -9,8 +9,8 @@ import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
 import { useRouter } from "expo-router"
-import { ArrowLeft, Trash2 } from "lucide-react"
-import ListingCard from "@/components/marketplace/listing-card"
+import { Ionicons } from "@expo/vector-icons"
+  import ListingCard from "@/components/marketplace/listing-card"
 import AccommodationCard from "@/components/accommodation/accommodation-card"
 import { Alert } from "react-native"
 
@@ -61,7 +61,7 @@ export default function FavoritesScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Favorites</Text>
         <View style={styles.backButton} />
@@ -85,7 +85,7 @@ export default function FavoritesScreen() {
                 onPress={() => handleRemoveFavorite(item.id)}
                 disabled={removeFavoriteMutation.isPending}
               >
-                <Trash2 size={20} color="#fff" />
+                <Ionicons name="trash" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
           )}

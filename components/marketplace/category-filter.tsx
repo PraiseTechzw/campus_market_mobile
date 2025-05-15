@@ -2,7 +2,9 @@ import { StyleSheet, ScrollView, TouchableOpacity, Text, View } from "react-nati
 import { useQuery } from "@tanstack/react-query"
 import { getListingCategories } from "@/services/marketplace"
 import type { ListingCategory } from "@/types"
-import { Book, Smartphone, Shirt, Armchair, Utensils, Briefcase, Package } from "lucide-react"
+import { MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons"
+import Colors from "@/constants/Colors"
+import { useColorScheme } from "@/hooks/use-color-scheme"
 
 type CategoryFilterProps = {
   selectedCategory: ListingCategory | null
@@ -15,22 +17,25 @@ export default function CategoryFilter({ selectedCategory, onSelectCategory }: C
     queryFn: getListingCategories,
   })
 
+  const colorScheme = useColorScheme()
+  const tintColor = Colors[colorScheme ?? "light"].tint
+
   const getIconForCategory = (iconName?: string) => {
     switch (iconName) {
       case "book-open":
-        return <Book size={24} color="#0891b2" />
+        return <FontAwesome5 name="book-open" size={24} color={tintColor} />
       case "smartphone":
-        return <Smartphone size={24} color="#0891b2" />
+        return <MaterialIcons name="smartphone" size={24} color={tintColor} />
       case "shirt":
-        return <Shirt size={24} color="#0891b2" />
+        return <Ionicons name="shirt-outline" size={24} color={tintColor} />
       case "armchair":
-        return <Armchair size={24} color="#0891b2" />
+        return <MaterialIcons name="chair" size={24} color={tintColor} />
       case "utensils":
-        return <Utensils size={24} color="#0891b2" />
+        return <FontAwesome5 name="utensils" size={24} color={tintColor} />
       case "briefcase":
-        return <Briefcase size={24} color="#0891b2" />
+        return <FontAwesome5 name="briefcase" size={24} color={tintColor} />
       default:
-        return <Package size={24} color="#0891b2" />
+        return <FontAwesome5 name="box" size={24} color={tintColor} />
     }
   }
 
@@ -46,7 +51,7 @@ export default function CategoryFilter({ selectedCategory, onSelectCategory }: C
           onPress={() => onSelectCategory(null)}
         >
           <View style={styles.iconContainer}>
-            <Package size={24} color="#0891b2" />
+            <FontAwesome5 name="box" size={24} color={tintColor} />
           </View>
           <Text style={[styles.categoryText, !selectedCategory && styles.selectedCategoryText]}>All</Text>
         </TouchableOpacity>
@@ -87,7 +92,7 @@ const styles = StyleSheet.create({
   selectedCategoryItem: {
     backgroundColor: "#e6f7ff",
     borderWidth: 1,
-    borderColor: "#0891b2",
+    borderColor: "#10b981",
   },
   iconContainer: {
     marginBottom: 4,
@@ -98,6 +103,6 @@ const styles = StyleSheet.create({
   },
   selectedCategoryText: {
     fontWeight: "bold",
-    color: "#0891b2",
+    color: "#10b981",
   },
 })

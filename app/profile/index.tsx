@@ -3,7 +3,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from "react-native"
 import { useRouter } from "expo-router"
 import Colors from "../../constants/Colors"
-import { Camera, LogOut, Moon, Settings, ShoppingBag, Sun, User, Heart, Star, Bell } from "lucide-react"
+import { Ionicons } from "@expo/vector-icons"
 
 const ProfileScreen = () => {
   const router = useRouter()
@@ -18,10 +18,10 @@ const ProfileScreen = () => {
       <View style={styles.profileSection}>
         <View style={styles.profileImageContainer}>
           <View style={styles.profileImage}>
-            <User size={60} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="person" size={60} color={Colors[colorScheme ?? "light"].text} />
           </View>
           <TouchableOpacity style={styles.editButton}>
-            <Camera size={20} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="camera" size={20} color={Colors[colorScheme ?? "light"].text} />
           </TouchableOpacity>
         </View>
         <Text style={[styles.userName, { color: Colors[colorScheme ?? "light"].text }]}>John Doe</Text>
@@ -34,22 +34,22 @@ const ProfileScreen = () => {
         <Text style={[styles.menuTitle, { color: Colors[colorScheme ?? "light"].text }]}>Account</Text>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/listings")}>
-          <ShoppingBag size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="bag" size={20} color={Colors[colorScheme ?? "light"].text} />
           <Text style={styles.menuItemText}>My Listings</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/favorites")}>
-          <Heart size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="heart" size={20} color={Colors[colorScheme ?? "light"].text} />
           <Text style={styles.menuItemText}>Favorites</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/interests")}>
-          <Star size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="star" size={20} color={Colors[colorScheme ?? "light"].text} />
           <Text style={styles.menuItemText}>My Interests</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/settings")}>
-          <Settings size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="settings" size={20} color={Colors[colorScheme ?? "light"].text} />
           <Text style={styles.menuItemText}>Settings</Text>
         </TouchableOpacity>
       </View>
@@ -59,21 +59,21 @@ const ProfileScreen = () => {
 
         <TouchableOpacity style={styles.menuItem}>
           {colorScheme === "light" ? (
-            <Moon size={20} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="moon" size={20} color={Colors[colorScheme ?? "light"].text} />
           ) : (
-            <Sun size={20} color={Colors[colorScheme ?? "light"].text} />
+            <Ionicons name="sunny" size={20} color={Colors[colorScheme ?? "light"].text} />
           )}
           <Text style={styles.menuItemText}>Dark Mode</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem}>
-          <Bell size={20} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="bell" size={20} color={Colors[colorScheme ?? "light"].text} />
           <Text style={styles.menuItemText}>Notifications</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.logoutButton}>
-        <LogOut size={20} color={Colors[colorScheme ?? "light"].text} />
+        <Ionicons name="log-out" size={20} color={Colors[colorScheme ?? "light"].text} />
         <Text style={[styles.logoutButtonText, { color: Colors[colorScheme ?? "light"].text }]}>Log Out</Text>
       </TouchableOpacity>
     </View>

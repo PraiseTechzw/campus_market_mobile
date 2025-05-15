@@ -4,7 +4,7 @@ import { Text, View } from "@/components/themed"
 import type { Accommodation } from "@/types"
 import { useRouter } from "expo-router"
 import { formatDistanceToNow } from "date-fns"
-import { Bed, Bath, MapPin } from "lucide-react"
+import { Ionicons } from "@expo/vector-icons"
 
 type AccommodationCardProps = {
   accommodation: Accommodation
@@ -35,14 +35,14 @@ export default function AccommodationCard({ accommodation, style }: Accommodatio
 
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
-            <Bed size={16} color="#666" />
+            <Ionicons name="bed" size={16} color="#666" />
             <Text style={styles.detailText}>
               {accommodation.bedrooms} {accommodation.bedrooms === 1 ? "Bedroom" : "Bedrooms"}
             </Text>
           </View>
 
           <View style={styles.detailItem}>
-            <Bath size={16} color="#666" />
+            <Ionicons name="bath" size={16} color="#666" />
             <Text style={styles.detailText}>
               {accommodation.bathrooms} {accommodation.bathrooms === 1 ? "Bathroom" : "Bathrooms"}
             </Text>
@@ -50,7 +50,7 @@ export default function AccommodationCard({ accommodation, style }: Accommodatio
         </View>
 
         <View style={styles.locationRow}>
-          <MapPin size={16} color="#666" />
+              <Ionicons name="location" size={16} color="#666" />
           <Text style={styles.location} numberOfLines={1}>
             {accommodation.address}
           </Text>

@@ -1,5 +1,5 @@
-const tintColorLight = "#0891b2"
-const tintColorDark = "#06b6d4"
+const tintColorLight = "#10b981" // Green color
+const tintColorDark = "#34d399"
 
 export default {
   light: {
@@ -10,6 +10,15 @@ export default {
     tabIconSelected: tintColorLight,
     sidebar: "#f5f5f5",
     sidebarText: "#333",
+    primary: "#10b981",
+    secondary: "#059669",
+    accent: "#34d399",
+    success: "#10b981",
+    warning: "#f59e0b",
+    error: "#ef4444",
+    info: "#3b82f6",
+    card: "#fff",
+    border: "#e5e7eb",
   },
   dark: {
     text: "#fff",
@@ -19,5 +28,14 @@ export default {
     tabIconSelected: tintColorDark,
     sidebar: "#1e1e1e",
     sidebarText: "#f5f5f5",
+    primary: "#34d399",
+    secondary: "#10b981",
+    accent: "#059669",
+    success: "#10b981",
+    warning: "#f59e0b",
+    error: "#ef4444",
+    info: "#3b82f6",
+    card: "#1e1e1e",
+    border: "#2e2e2e",
   },
 }

@@ -4,8 +4,8 @@ import React, { useEffect } from "react"
 import { StyleSheet, TouchableOpacity, View, Text, Modal, FlatList } from "react-native"
 import { useQuery } from "@tanstack/react-query"
 import { getCampuses } from "@/services/campus"
-import { ChevronDown } from "lucide-react"
 import type { Campus } from "@/types"
+import { Ionicons } from "@expo/vector-icons"
 
 type CampusSelectorProps = {
   selectedCampus: Campus | null
@@ -38,7 +38,7 @@ export default function CampusSelector({ selectedCampus, onSelectCampus }: Campu
         <Text style={styles.selectorText}>
           {selectedCampus ? selectedCampus.name : isLoading ? "Loading..." : "Select Campus"}
         </Text>
-        <ChevronDown size={20} color="#666" />
+        <Ionicons name = 'chevron-down' size={20} color="#666" />
       </TouchableOpacity>
 
       <Modal

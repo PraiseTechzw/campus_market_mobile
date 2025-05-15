@@ -18,10 +18,10 @@ import { useRouter } from "expo-router"
 import { supabase } from "@/lib/supabase"
 import { TextInput } from "react-native"
 import { Alert } from "react-native"
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react"
 import AuthGuard from "@/components/auth-guard"
 import { StatusBar } from "expo-status-bar"
 import Colors from "@/constants/Colors"
+import { Ionicons } from "@expo/vector-icons"
 
 export default function RegisterScreen() {
   return (
@@ -125,7 +125,7 @@ function RegisterContent() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#0891b2" />
+          <Ionicons name="arrow-back" size={24} color="#0891b2" />
         </TouchableOpacity>
 
         <View style={styles.logoContainer}>
@@ -148,7 +148,7 @@ function RegisterContent() {
             <View style={[styles.inputContainer, styles.halfInput]}>
               <Text style={styles.label}>First Name</Text>
               <View style={styles.inputWrapper}>
-                <User size={18} color="#666" style={styles.inputIcon} />
+                <Ionicons name="person" size={18} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="First Name"
@@ -161,7 +161,7 @@ function RegisterContent() {
             <View style={[styles.inputContainer, styles.halfInput]}>
               <Text style={styles.label}>Last Name</Text>
               <View style={styles.inputWrapper}>
-                <User size={18} color="#666" style={styles.inputIcon} />
+                <Ionicons name="person" size={18} color="#666" style={styles.inputIcon} />
                 <TextInput style={styles.input} placeholder="Last Name" value={lastName} onChangeText={setLastName} />
               </View>
             </View>
@@ -170,7 +170,7 @@ function RegisterContent() {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
             <View style={styles.inputWrapper}>
-              <Mail size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your email"
@@ -185,7 +185,7 @@ function RegisterContent() {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
-              <Lock size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons name="lock-closed" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Create a password"
@@ -194,7 +194,7 @@ function RegisterContent() {
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                {showPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
+                {showPassword ? <Ionicons name="eye-off" size={20} color="#666" /> : <Ionicons name="eye" size={20} color="#666" />}
               </TouchableOpacity>
             </View>
           </View>
@@ -202,7 +202,7 @@ function RegisterContent() {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrapper}>
-              <Lock size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons   name="lock-closed" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Confirm your password"
@@ -211,7 +211,7 @@ function RegisterContent() {
                 secureTextEntry={!showConfirmPassword}
               />
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                {showConfirmPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
+                {showConfirmPassword ? <Ionicons name="eye-off" size={20} color="#666" /> : <Ionicons name="eye" size={20} color="#666" />}
               </TouchableOpacity>
             </View>
           </View>

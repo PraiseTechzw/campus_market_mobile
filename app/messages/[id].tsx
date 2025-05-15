@@ -1,4 +1,4 @@
-"use client"
+  "use client"
 
 import { useState, useEffect, useRef } from "react"
 import {
@@ -19,8 +19,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
 import type { Message } from "@/types"
 import MessageBubble from "@/components/messages/message-bubble"
-import { ArrowLeft, Send } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { Ionicons } from "@expo/vector-icons"
 
 export default function ConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -120,7 +120,7 @@ export default function ConversationScreen() {
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={Colors[colorScheme ?? "light"].text} />
+          <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.headerName}>
@@ -167,7 +167,7 @@ export default function ConversationScreen() {
           {sendMessageMutation.isPending ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Send size={20} color="#fff" />
+            <Ionicons name="send" size={20} color="#fff" />
           )}
         </TouchableOpacity>
       </View>

@@ -60,6 +60,13 @@ function TabNavigator() {
         }}
       />
       <Tabs.Screen
+        name="events"
+        options={{
+          title: "Events",
+          tabBarIcon: ({ color, focused }) => <TabBarIcon name="event" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="accommodation"
         options={{
           title: "Housing",

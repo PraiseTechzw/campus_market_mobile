@@ -182,6 +182,16 @@ export type Event = {
   is_featured: boolean
   created_at: string
   updated_at: string
+  profiles?: {
+    id: string
+    first_name: string
+    last_name: string
+    avatar_url?: string
+  }
+  campuses?: {
+    id: string | number
+    name: string
+  }
   organizer?: {
     first_name: string
     last_name: string

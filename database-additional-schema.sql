@@ -87,3 +87,73 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(use
 CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON public.reports(reporter_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON public.analytics_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_name ON public.analytics_events(event_name);
+
+-- ADD RLS POLICIES FOR TABLES
+
+-- Enable RLS on events table
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to view all events
+CREATE POLICY "Allow authenticated users to view events"
+ON public.events
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- Allow authenticated users to insert events
+CREATE POLICY "Allow authenticated users to insert events"
+ON public.events
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+-- Allow users to update and delete their own events
+CREATE POLICY "Allow users to update their own events"
+ON public.events
+FOR UPDATE
+TO authenticated
+USING (organizer_id = auth.uid());
+
+CREATE POLICY "Allow users to delete their own events"
+ON public.events
+FOR DELETE
+TO authenticated
+USING (organizer_id = auth.uid());
+
+-- Allow anonymous users to view events (optional)
+CREATE POLICY "Allow anonymous users to view events"
+ON public.events
+FOR SELECT
+TO anon
+USING (true);
+
+-- Enable RLS on event_participants table
+ALTER TABLE public.event_participants ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to see all event participants
+CREATE POLICY "Allow authenticated users to view event participants"
+ON public.event_participants
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- Allow authenticated users to join events
+CREATE POLICY "Allow authenticated users to join events"
+ON public.event_participants
+FOR INSERT
+TO authenticated
+WITH CHECK (user_id = auth.uid());
+
+-- Allow users to update their own event participation
+CREATE POLICY "Allow users to update their own event participation"
+ON public.event_participants
+FOR UPDATE
+TO authenticated
+USING (user_id = auth.uid());
+
+-- Allow users to remove themselves from events
+CREATE POLICY "Allow users to remove themselves from events"
+ON public.event_participants
+FOR DELETE
+TO authenticated
+USING (user_id = auth.uid());

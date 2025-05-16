@@ -162,7 +162,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               style={styles.quickActionItem}
-              onPress={() => router.push("/events/create")}
+              onPress={() => router.push('/events/create/')}
               activeOpacity={0.7}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: "#f59e0b" }]}>

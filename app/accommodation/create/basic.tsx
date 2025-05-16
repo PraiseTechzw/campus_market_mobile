@@ -365,7 +365,7 @@ function BasicCreateAccommodationContent() {
                 </Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. Cozy 2BR Apartment near Campus"
+                  placeholder="e.g. Muzari mix boarding near Campus"
                   value={title}
                   onChangeText={setTitle}
                   maxLength={100}
@@ -702,129 +702,187 @@ function BasicCreateAccommodationContent() {
       </LinearGradient>
       
       {/* Type Selection Modal */}
-      <Modal
-        visible={typeModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setTypeModalVisible(false)}
-        statusBarTranslucent={true}
-      >
-        <TouchableOpacity 
-          style={styles.modalBackdrop} 
-          activeOpacity={1} 
-          onPress={() => setTypeModalVisible(false)}
+      {typeModalVisible && (
+        <MotiView 
+          style={styles.iosModalContainer}
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 300 }}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Accommodation Type</Text>
-              <TouchableOpacity 
-                style={styles.modalCloseButton} 
-                onPress={() => setTypeModalVisible(false)}
-                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
-              >
-                <MaterialIcons name="close" size={24} color="#000" />
-              </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iosModalOverlay} 
+            activeOpacity={1}
+            onPress={() => setTypeModalVisible(false)}
+          />
+          <MotiView 
+            style={styles.iosModal}
+            from={{ translateY: 300 }}
+            animate={{ translateY: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          >
+            <View style={styles.iosModalDragIndicator} />
+            <View style={styles.iosModalHeader}>
+              <Text style={styles.iosModalTitle}>Select Accommodation Type</Text>
             </View>
-            
-            <FlatList
-              data={types}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
+            <ScrollView 
+              style={styles.iosModalScroll}
+              showsVerticalScrollIndicator={false}
+              bounces={true}
+            >
+              {types?.map((item) => (
                 <TouchableOpacity
-                  style={[styles.modalItem, typeId === item.id && styles.modalItemSelected]}
+                  key={item.id}
+                  style={[styles.iosModalItem, typeId === item.id && styles.iosModalItemSelected]}
                   onPress={() => {
                     setTypeId(item.id.toString())
                     setTypeModalVisible(false)
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.6}
                 >
-                  <Text style={styles.modalItemText}>{item.name}</Text>
+                  <View style={styles.iosModalItemContent}>
+                    <MaterialIcons 
+                      name="home" 
+                      size={22} 
+                      color={typeId === item.id ? Colors[colorScheme ?? "light"].tint : "#999"} 
+                      style={styles.iosModalItemIcon}
+                    />
+                    <Text style={[
+                      styles.iosModalItemText,
+                      typeId === item.id && styles.iosModalItemTextSelected
+                    ]}>
+                      {item.name}
+                    </Text>
+                  </View>
                   {typeId === item.id && (
-                    <MaterialIcons name="check" size={20} color={Colors[colorScheme ?? "light"].tint} />
+                    <MaterialIcons name="check" size={22} color={Colors[colorScheme ?? "light"].tint} />
                   )}
                 </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+              ))}
+              <View style={styles.iosModalBottomPadding} />
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={styles.iosModalCancelButton}
+              onPress={() => setTypeModalVisible(false)}
+            >
+              <Text style={styles.iosModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </MotiView>
+        </MotiView>
+      )}
       
       {/* Campus Selection Modal */}
-      <Modal
-        visible={campusModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setCampusModalVisible(false)}
-        statusBarTranslucent={true}
-      >
-        <TouchableOpacity 
-          style={styles.modalBackdrop} 
-          activeOpacity={1} 
-          onPress={() => setCampusModalVisible(false)}
+      {campusModalVisible && (
+        <MotiView 
+          style={styles.iosModalContainer}
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 300 }}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Campus</Text>
-              <TouchableOpacity 
-                style={styles.modalCloseButton}
-                onPress={() => setCampusModalVisible(false)}
-                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
-              >
-                <MaterialIcons name="close" size={24} color="#000" />
-              </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iosModalOverlay} 
+            activeOpacity={1}
+            onPress={() => setCampusModalVisible(false)}
+          />
+          <MotiView 
+            style={styles.iosModal}
+            from={{ translateY: 300 }}
+            animate={{ translateY: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          >
+            <View style={styles.iosModalDragIndicator} />
+            <View style={styles.iosModalHeader}>
+              <Text style={styles.iosModalTitle}>Select Campus</Text>
             </View>
-            
-            <FlatList
-              data={campuses}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
+            <ScrollView 
+              style={styles.iosModalScroll}
+              showsVerticalScrollIndicator={false}
+              bounces={true}
+            >
+              {campuses?.map((item) => (
                 <TouchableOpacity
-                  style={[styles.modalItem, campusId === item.id && styles.modalItemSelected]}
+                  key={item.id}
+                  style={[styles.iosModalItem, campusId === item.id && styles.iosModalItemSelected]}
                   onPress={() => {
                     setCampusId(item.id.toString())
                     setCampusModalVisible(false)
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={0.6}
                 >
-                  <Text style={styles.modalItemText}>{item.name}</Text>
+                  <View style={styles.iosModalItemContent}>
+                    <MaterialIcons 
+                      name="location-on" 
+                      size={22} 
+                      color={campusId === item.id ? Colors[colorScheme ?? "light"].tint : "#999"} 
+                      style={styles.iosModalItemIcon}
+                    />
+                    <Text style={[
+                      styles.iosModalItemText,
+                      campusId === item.id && styles.iosModalItemTextSelected
+                    ]}>
+                      {item.name}
+                    </Text>
+                  </View>
                   {campusId === item.id && (
-                    <MaterialIcons name="check" size={20} color={Colors[colorScheme ?? "light"].tint} />
+                    <MaterialIcons name="check" size={22} color={Colors[colorScheme ?? "light"].tint} />
                   )}
                 </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+              ))}
+              <View style={styles.iosModalBottomPadding} />
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={styles.iosModalCancelButton}
+              onPress={() => setCampusModalVisible(false)}
+            >
+              <Text style={styles.iosModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </MotiView>
+        </MotiView>
+      )}
       
       {/* Image Options Modal */}
-      <Modal
-        visible={imageOptionsVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setImageOptionsVisible(false)}
-        statusBarTranslucent={true}
-      >
-        <TouchableOpacity 
-          style={styles.modalBackdrop}
-          activeOpacity={1} 
-          onPress={() => setImageOptionsVisible(false)}
+      {imageOptionsVisible && (
+        <MotiView 
+          style={styles.iosModalContainer}
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 300 }}
         >
-          <View style={styles.imageOptionsContainer} onStartShouldSetResponder={() => true}>
-            <TouchableOpacity style={styles.imageOption} onPress={pickImage}>
+          <TouchableOpacity 
+            style={styles.iosModalOverlay} 
+            activeOpacity={1}
+            onPress={() => setImageOptionsVisible(false)}
+          />
+          <MotiView 
+            style={styles.iosModalActionSheet}
+            from={{ translateY: 300 }}
+            animate={{ translateY: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          >
+            <View style={styles.iosModalDragIndicator} />
+            <View style={styles.iosModalHeader}>
+              <Text style={styles.iosModalTitle}>Add Photos</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.iosModalActionButton}
+              onPress={pickImage}
+              activeOpacity={0.6}
+            >
               <MaterialIcons name="photo-library" size={24} color={Colors[colorScheme ?? "light"].tint} />
-              <Text style={styles.imageOptionText}>Choose from Gallery</Text>
+              <Text style={styles.iosModalActionText}>Choose from Gallery</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.cancelButton} 
+              style={styles.iosModalCancelButton}
               onPress={() => setImageOptionsVisible(false)}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.iosModalCancelText}>Cancel</Text>
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+          </MotiView>
+        </MotiView>
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -990,13 +1048,18 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#fafafa",
   },
+  selectIcon: {
+    marginRight: 8,
+  },
   selectInputText: {
     fontSize: 16,
     color: "#333",
+    flex: 1,
   },
   selectInputPlaceholder: {
     fontSize: 16,
     color: "#999",
+    flex: 1,
   },
   inputWithButton: {
     flexDirection: "row",
@@ -1197,87 +1260,123 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.7,
   },
-  modalContainer: {
-    flex: 1,
+  // iOS Modal styles
+  iosModalContainer: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.5)",
+    zIndex: 1000,
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: "70%",
-    paddingBottom: Platform.OS === 'android' ? 20 : 0,
-    marginTop: 'auto',
+  iosModalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
   },
-  modalHeader: {
+  iosModal: {
+    backgroundColor: "#f8f8f8",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 16,
+  },
+  iosModalDragIndicator: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#d1d1d6",
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  iosModalHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  modalItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  modalItemSelected: {
-    backgroundColor: "#f0f7ff",
-  },
-  modalItemText: {
-    fontSize: 16,
-  },
-  imageOptionsContainer: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
-    paddingBottom: Platform.OS === 'android' ? 30 : 20,
-    marginTop: 'auto',
-  },
-  imageOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  imageOptionText: {
-    fontSize: 16,
-    marginLeft: 16,
-  },
-  cancelButton: {
-    marginTop: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: "red",
-    fontWeight: "500",
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
     justifyContent: "center",
     alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
-  selectIcon: {
-    marginRight: 8,
+  iosModalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#000",
+    textAlign: "center",
+  },
+  iosModalScroll: {
+    maxHeight: Dimensions.get("window").height * 0.6,
+  },
+  iosModalItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#d1d1d6",
+  },
+  iosModalItemSelected: {
+    backgroundColor: "#fff",
+  },
+  iosModalItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  iosModalItemIcon: {
+    marginRight: 12,
+    width: 24,
+    textAlign: "center",
+  },
+  iosModalItemText: {
+    fontSize: 17,
+    color: "#000",
+  },
+  iosModalItemTextSelected: {
+    color: Colors.light.tint,
+  },
+  iosModalBottomPadding: {
+    height: 8,
+  },
+  iosModalCancelButton: {
+    marginTop: 8,
+    marginBottom: Platform.OS === "ios" ? 34 : 16,
+    padding: 16,
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+  },
+  iosModalCancelText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: Colors.light.tint,
+  },
+  iosModalActionSheet: {
+    backgroundColor: "#f8f8f8",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 16,
+    paddingTop: 8,
+  },
+  iosModalActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 8,
+    marginHorizontal: 8,
+  },
+  iosModalActionText: {
+    fontSize: 17,
+    color: Colors.light.tint,
+    marginLeft: 12,
   },
 }) 

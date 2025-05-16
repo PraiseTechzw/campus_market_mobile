@@ -319,61 +319,63 @@ export async function createConversation(
       accommodationId 
     });
 
-    // Check if conversation already exists
-    console.log("Checking for existing conversation...");
-    const { data: existingConv, error: existingConvError } = await supabase
-      .from("conversations")
-      .select("id")
-      .or(
-        `and(participant1_id.eq.${participant1Id},participant2_id.eq.${participant2Id}),` +
-          `and(participant1_id.eq.${participant2Id},participant2_id.eq.${participant1Id})`,
-      )
-      // If we're looking for a specific listing or accommodation conversation
-      .is("listing_id", listingId ? null : "is.null")
-      .is("accommodation_id", accommodationId ? null : "is.null")
-      .eq(listingId ? "listing_id" : "id", listingId || "id")
-      .eq(accommodationId ? "accommodation_id" : "id", accommodationId || "id")
-      .maybeSingle()
+    // Check if conversation already exists with these participants and specific listing/accommodation
+    console.log("Checking for existing conversation with specific listing/accommodation...");
     
-    console.log("Existing conversation check result:", existingConv);
+    let query = supabase
+      .from("conversations")
+      .select("id");
+
+    // Filter by participants in both directions
+    query = query.or(
+      `and(participant1_id.eq.${participant1Id},participant2_id.eq.${participant2Id}),` +
+      `and(participant1_id.eq.${participant2Id},participant2_id.eq.${participant1Id})`
+    );
+    
+    // Add specific filters for listing or accommodation if provided
+    if (listingId) {
+      query = query.eq("listing_id", listingId);
+    } else {
+      query = query.is("listing_id", null);
+    }
+    
+    if (accommodationId) {
+      query = query.eq("accommodation_id", accommodationId);
+    } else {
+      query = query.is("accommodation_id", null);
+    }
+    
+    const { data: existingConv, error: existingConvError } = await query.maybeSingle();
+    
+    console.log("Existing specific conversation check result:", existingConv);
     if (existingConvError) {
       console.error("Error checking for existing conversation:", existingConvError);
     }
 
     if (existingConv) {
       console.log("Found existing conversation with ID:", existingConv.id);
-      return existingConv.id
+      return existingConv.id;
     }
 
-    // There's an issue with the query above. Let's fix it by using a simpler approach:
+    // If no specific conversation exists, check if a general conversation exists
     if (listingId || accommodationId) {
-      console.log("Using alternative approach to find conversation with listing/accommodation");
-      let query = supabase
+      console.log("No specific conversation found, checking for general conversation...");
+      const { data: generalConversation, error: generalError } = await supabase
         .from("conversations")
         .select("id")
         .or(
           `and(participant1_id.eq.${participant1Id},participant2_id.eq.${participant2Id}),` +
-            `and(participant1_id.eq.${participant2Id},participant2_id.eq.${participant1Id})`,
-        );
+          `and(participant1_id.eq.${participant2Id},participant2_id.eq.${participant1Id})`
+        )
+        .is("listing_id", null)
+        .is("accommodation_id", null)
+        .limit(1);
       
-      if (listingId) {
-        query = query.eq("listing_id", listingId);
-      }
-      
-      if (accommodationId) {
-        query = query.eq("accommodation_id", accommodationId);
-      }
-      
-      const { data: alternativeResult, error: altError } = await query.maybeSingle();
-      
-      console.log("Alternative query result:", alternativeResult);
-      if (altError) {
-        console.error("Error in alternative query:", altError);
-      }
-      
-      if (alternativeResult) {
-        console.log("Found existing conversation with alternative query, ID:", alternativeResult.id);
-        return alternativeResult.id;
+      if (generalError) {
+        console.error("Error checking for general conversation:", generalError);
+      } else if (generalConversation && generalConversation.length > 0) {
+        console.log("Found general conversation with ID:", generalConversation[0].id);
+        return generalConversation[0].id;
       }
     }
 
@@ -388,7 +390,7 @@ export async function createConversation(
         accommodation_id: accommodationId,
       })
       .select("id")
-      .single()
+      .single();
 
     if (error) {
       console.error("Error creating new conversation:", error);
@@ -396,9 +398,9 @@ export async function createConversation(
     }
 
     console.log("New conversation created with ID:", data.id);
-    return data.id
+    return data.id;
   } catch (error) {
-    console.error("Error in createConversation:", error)
-    throw error
+    console.error("Error in createConversation:", error);
+    throw error;
   }
 }

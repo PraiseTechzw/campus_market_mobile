@@ -142,18 +142,91 @@ function QuickCreateEventContent() {
     if (!image) return undefined;
 
     try {
-      // For simplicity and reliability, we'll use a mock image URL
-      // This allows event creation to work while we diagnose the upload issues
-      console.log('Image would have been uploaded from:', image);
+      // Create a unique filename
+      const fileExtMatch = image.match(/\.([^.]+)$/);
+      const fileExt = (fileExtMatch && fileExtMatch[1]?.toLowerCase()) || 'jpg';
+      const fileName = `event_image_${Date.now()}.${fileExt}`;
       
-      // Return a placeholder image URL that works
-      return "https://iili.io/J1lvFTB.jpg"; // Generic event placeholder
+      // *** IMPORTANT: Use the correct bucket name - "events" not "images" ***
+      const bucket = 'events';
+      const filePath = fileName;
+
+      // Create form data for the upload
+      const formData = new FormData();
+      formData.append('file', {
+        uri: image,
+        name: fileName,
+        type: fileExt === 'jpg' || fileExt === 'jpeg' ? 'image/jpeg' : 
+              fileExt === 'png' ? 'image/png' : 
+              fileExt === 'gif' ? 'image/gif' : 'image/jpeg',
+      } as any);
+
+      console.log(`Attempting upload to bucket: ${bucket}, path: ${filePath}`);
       
-      // When you're ready to fix the real upload, you can implement a working solution
-      // The issue is likely related to CORS, permissions, or the specific Supabase setup
+      // First try using the Supabase SDK (should work for most cases)
+      try {
+        // Convert image to blob
+        const response = await fetch(image);
+        const blob = await response.blob();
+        
+        const { data, error } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, blob, {
+            contentType: fileExt === 'jpg' || fileExt === 'jpeg' ? 'image/jpeg' : 
+                        fileExt === 'png' ? 'image/png' : 
+                        fileExt === 'gif' ? 'image/gif' : 'image/jpeg',
+            upsert: true
+          });
+          
+        if (error) {
+          console.error('Supabase SDK upload error:', error);
+          throw error;
+        }
+        
+        // Get the public URL
+        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        console.log('Successfully uploaded image:', urlData.publicUrl);
+        return urlData.publicUrl;
+      } 
+      catch (sdkError) {
+        console.log('SDK upload failed, trying direct API method...');
+        
+        // Try alternative direct API method
+        const apiUrl = `https://ekatrgycippkvhgymgtw.supabase.co/storage/v1/object/${bucket}/${filePath}`;
+        const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrYXRyZ3ljaXBwa3ZoZ3ltZ3R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDczMDQyOTIsImV4cCI6MjA2Mjg4MDI5Mn0.dcPv7YBj3Fe0MwJz02voaz0LtkbCh2nQ29Xjv8MsKnY';
+        
+        const uploadResponse = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'x-upsert': 'true',
+          },
+          body: formData,
+        });
+        
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('Direct API upload error:', uploadResponse.status, errorText);
+          
+          // If we hit a "bucket not found" error, provide clear instructions
+          if (errorText.includes('Bucket not found')) {
+            Alert.alert(
+              'Storage Setup Required',
+              'The "events" storage bucket needs to be created in your Supabase project. Please go to the Supabase dashboard, select Storage, and create a new bucket named "events" with public access.',
+              [{ text: 'OK' }]
+            );
+          }
+          
+          throw new Error(`Upload failed: ${uploadResponse.status}`);
+        }
+        
+        const publicUrl = `https://ekatrgycippkvhgymgtw.supabase.co/storage/v1/object/public/${bucket}/${filePath}`;
+        console.log('Successfully uploaded image via direct API:', publicUrl);
+        return publicUrl;
+      }
     } catch (error) {
-      console.error('Error with image processing:', error);
-      return null;
+      console.error('Error uploading image:', error);
+      throw error; // Let the calling function handle this error
     }
   }
 
@@ -275,34 +348,31 @@ function QuickCreateEventContent() {
       
       if (image) {
         try {
-          const uploadResult = await uploadImage();
-          // If upload returns null, it failed but we can continue
-          if (uploadResult === null) {
-            Alert.alert(
-              "Warning", 
-              "We couldn't upload your image, but you can still create the event without it.", 
-              [{ text: "Continue" }]
-            );
-          } else {
-            imageUrl = uploadResult;
-          }
-        } catch (uploadError) {
+          imageUrl = await uploadImage();
+        } catch (uploadError: any) {
           console.error("Image upload failed:", uploadError);
-          // Ask the user if they want to continue without the image
-          const continueWithoutImage = await new Promise<boolean>(resolve => {
-            Alert.alert(
-              "Image Upload Failed",
-              "Would you like to create the event without an image?",
-              [
-                { text: "Cancel", onPress: () => resolve(false) },
-                { text: "Continue", onPress: () => resolve(true) }
-              ]
-            );
-          });
           
-          if (!continueWithoutImage) {
+          // If there's a message about bucket not found, we already showed an alert in uploadImage
+          if (!uploadError.message?.includes('Bucket not found')) {
+            // Ask the user if they want to continue without the image
+            const continueWithoutImage = await new Promise<boolean>(resolve => {
+              Alert.alert(
+                "Image Upload Failed",
+                "Would you like to create the event without an image?",
+                [
+                  { text: "Cancel", onPress: () => resolve(false) },
+                  { text: "Continue Without Image", onPress: () => resolve(true) }
+                ]
+              );
+            });
+            
+            if (!continueWithoutImage) {
+              setLoading(false);
+              return;
+            }
+          } else {
             setLoading(false);
-            return;
+            return; // Don't continue if bucket not found - they need to create it first
           }
         }
       }

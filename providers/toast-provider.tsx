@@ -6,6 +6,7 @@ import { Toast, type ToastType } from "@/components/ui/toast"
 interface ToastContextProps {
   showToast: (message: string, type?: ToastType, duration?: number) => void
   hideToast: () => void
+  show: (options: { type: string; title: string; message: string }) => void
 }
 
 const ToastContext = createContext<ToastContextProps | undefined>(undefined)
@@ -27,12 +28,19 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setVisible(true)
   }
 
+  const show = (options: { type: string; title: string; message: string }) => {
+    setMessage(options.message)
+    setType(options.type as ToastType)
+    setDuration(3000)
+    setVisible(true)
+  }
+
   const hideToast = () => {
     setVisible(false)
   }
 
   return (
-    <ToastContext.Provider value={{ showToast, hideToast }}>
+    <ToastContext.Provider value={{ showToast, hideToast, show }}>
       {children}
       <Toast visible={visible} message={message} type={type} duration={duration} onDismiss={hideToast} />
     </ToastContext.Provider>

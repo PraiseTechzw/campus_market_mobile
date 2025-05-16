@@ -25,11 +25,7 @@ export async function getRecentAccommodations(campusId?: string | number) {
   }
 }
 
-export async function getAccommodations({
-  typeId,
-  searchQuery,
-  campusId,
-}: {
+export async function getAccommodations(options?: {
   typeId?: string | number
   searchQuery?: string
   campusId?: string | number
@@ -41,16 +37,16 @@ export async function getAccommodations({
       .eq("is_available", true)
       .order("created_at", { ascending: false })
 
-    if (typeId) {
-      query = query.eq("type_id", typeId)
+    if (options?.typeId) {
+      query = query.eq("type_id", options.typeId)
     }
 
-    if (campusId) {
-      query = query.eq("campus_id", campusId)
+    if (options?.campusId) {
+      query = query.eq("campus_id", options.campusId)
     }
 
-    if (searchQuery) {
-      query = query.or(`title.ilike.%${searchQuery}%,address.ilike.%${searchQuery}%`)
+    if (options?.searchQuery) {
+      query = query.or(`title.ilike.%${options.searchQuery}%,address.ilike.%${options.searchQuery}%`)
     }
 
     const { data, error } = await query

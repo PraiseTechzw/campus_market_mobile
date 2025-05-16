@@ -57,7 +57,11 @@ export default function HomeScreen() {
     refetch: refetchEvents,
   } = useQuery({
     queryKey: ["upcomingEvents", selectedCampus?.id],
-    queryFn: () => getEvents({ campusId: selectedCampus?.id ?? null, upcoming: true, limit: 5 }),
+    queryFn: () => getEvents({ 
+      campusId: selectedCampus?.id ? String(selectedCampus.id) : undefined, 
+      upcoming: true, 
+      limit: 5 
+    }),
   })
 
   const onRefresh = async () => {
@@ -147,7 +151,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               style={styles.quickActionItem}
-              onPress={() => router.push("/accommodation/create/quick")}
+              onPress={() => router.push("/accommodation/create/")}
               activeOpacity={0.7}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: "#3b82f6" }]}>

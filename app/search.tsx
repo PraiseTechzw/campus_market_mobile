@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Animated } from "react-native"
 import { useToast } from "@/providers/toast-provider"
 import { BlurView } from "expo-blur"
+import React from "react"
 
 // Define a consistent theme
 const THEME = {
@@ -197,6 +198,7 @@ export default function SearchScreen() {
     Keyboard.dismiss()
 
     try {
+      // Start animations
       Animated.parallel([
         Animated.spring(loadingScale, {
           toValue: 1,
@@ -254,14 +256,20 @@ export default function SearchScreen() {
         })),
       ]
 
+      // Update state and save search
       setResults(combinedResults)
-      saveRecentSearch(searchQuery)
+      await saveRecentSearch(searchQuery)
       
-      Animated.timing(resultsOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start()
+      // Animate results in
+      if (combinedResults.length > 0) {
+        setTimeout(() => {
+          Animated.timing(resultsOpacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }).start()
+        }, 300)
+      }
       
     } catch (error) {
       console.error("Error searching:", error)
@@ -288,18 +296,23 @@ export default function SearchScreen() {
     }
   }
 
-  const renderResultItem = ({ item, index }: { item: SearchResult, index: number }) => {
-    // Add staggered animation for each item
-    const itemAnimation = useRef(new Animated.Value(0)).current
+  // Create a separate component for result items to properly use hooks
+  const ResultItem = React.memo(({ item, index }: { item: SearchResult; index: number }) => {
+    const itemAnimRef = useRef(new Animated.Value(0));
+    const itemAnimation = itemAnimRef.current;
     
     useEffect(() => {
-      Animated.timing(itemAnimation, {
-        toValue: 1,
-        duration: 300,
-        delay: index * 80,
-        useNativeDriver: true,
-      }).start()
-    }, [])
+      const animationTimeout = setTimeout(() => {
+        Animated.timing(itemAnimation, {
+          toValue: 1,
+          duration: 300,
+          delay: index * 50,
+          useNativeDriver: true,
+        }).start();
+      }, 50);
+      
+      return () => clearTimeout(animationTimeout);
+    }, [index]);
     
     const animatedStyle = {
       opacity: itemAnimation,
@@ -311,7 +324,7 @@ export default function SearchScreen() {
           })
         }
       ]
-    }
+    };
     
     switch (item.type) {
       case "listing":
@@ -325,7 +338,7 @@ export default function SearchScreen() {
               <ListingCard listing={item.data as Listing} style={styles.card} />
             </TouchableOpacity>
           </Animated.View>
-        )
+        );
       case "accommodation":
         return (
           <Animated.View style={animatedStyle}>
@@ -337,9 +350,9 @@ export default function SearchScreen() {
               <AccommodationCard accommodation={item.data as Accommodation} style={styles.card} />
             </TouchableOpacity>
           </Animated.View>
-        )
+        );
       case "event":
-        const event = item.data as Event
+        const event = item.data as Event;
         return (
           <Animated.View style={animatedStyle}>
             <TouchableOpacity 
@@ -374,24 +387,29 @@ export default function SearchScreen() {
               </BlurView>
             </TouchableOpacity>
           </Animated.View>
-        )
+        );
       default:
-        return null
+        return null;
     }
-  }
+  });
 
-  const renderRecentSearch = ({ item, index }: { item: string, index: number }) => {
-    // Add staggered animation for each item
-    const itemAnimation = useRef(new Animated.Value(0)).current
+  // Create a separate component for recent search items
+  const RecentSearchItem = React.memo(({ item, index, onPress }: { item: string, index: number, onPress: (query: string) => void }) => {
+    const itemAnimRef = useRef(new Animated.Value(0));
+    const itemAnimation = itemAnimRef.current;
     
     useEffect(() => {
-      Animated.timing(itemAnimation, {
-        toValue: 1,
-        duration: 300,
-        delay: index * 50,
-        useNativeDriver: true,
-      }).start()
-    }, [])
+      const animationTimeout = setTimeout(() => {
+        Animated.timing(itemAnimation, {
+          toValue: 1,
+          duration: 300,
+          delay: index * 30,
+          useNativeDriver: true,
+        }).start();
+      }, 50);
+      
+      return () => clearTimeout(animationTimeout);
+    }, [index]);
     
     const animatedStyle = {
       opacity: itemAnimation,
@@ -403,7 +421,7 @@ export default function SearchScreen() {
           })
         }
       ]
-    }
+    };
     
     return (
       <Animated.View style={animatedStyle}>
@@ -414,7 +432,7 @@ export default function SearchScreen() {
         >
           <TouchableOpacity 
             style={styles.recentSearchItem} 
-            onPress={() => handleSearch(item)}
+            onPress={() => onPress(item)}
             activeOpacity={0.7}
           >
             <MaterialIcons name="history" size={20} color={colorScheme === "dark" ? "#aaa" : "#888"} />
@@ -422,7 +440,7 @@ export default function SearchScreen() {
             <View style={styles.flexSpacer} />
             <TouchableOpacity 
               style={styles.searchAgainButton} 
-              onPress={() => handleSearch(item)}
+              onPress={() => onPress(item)}
               activeOpacity={0.7}
             >
               <MaterialIcons name="search" size={18} color={THEME.green.primary} />
@@ -430,8 +448,17 @@ export default function SearchScreen() {
           </TouchableOpacity>
         </BlurView>
       </Animated.View>
-    )
-  }
+    );
+  });
+
+  // Replace renderItem with a simple function that uses the proper component
+  const renderResultItem = ({ item, index }: { item: SearchResult, index: number }) => (
+    <ResultItem item={item} index={index} />
+  );
+
+  const renderRecentSearch = ({ item, index }: { item: string, index: number }) => (
+    <RecentSearchItem item={item} index={index} onPress={handleSearch} />
+  );
 
   const backgroundStyle = {
     backgroundColor: colorScheme === "dark" ? THEME.background.dark : THEME.background.light,
@@ -669,7 +696,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
     marginRight: 12,
   },
   headerTitle: {
@@ -686,7 +712,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.input.light,
     borderRadius: 12,
     paddingHorizontal: 12,
     marginRight: 12,
@@ -707,7 +732,6 @@ const styles = StyleSheet.create({
   },
   searchInputFocused: {
     borderColor: THEME.green.primary,
-    backgroundColor: 'rgba(16, 185, 129, 0.05)',
     ...Platform.select({
       ios: {
         shadowColor: THEME.green.primary,
@@ -728,7 +752,6 @@ const styles = StyleSheet.create({
     height: 56,
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
   },
   clearButton: {
     padding: 8,

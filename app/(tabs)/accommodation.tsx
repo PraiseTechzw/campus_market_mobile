@@ -135,10 +135,25 @@ export default function AccommodationScreen() {
         {showFilters && (
           <MotiView
             from={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 80 }}
-            transition={{ type: "timing", duration: 300 }}
+            animate={{ opacity: 1, height: 100 }}
+            transition={{ type: "spring", damping: 15 }}
             style={styles.filtersContainer}
           >
+            <View style={styles.filterHeader}>
+              <View style={styles.filterTitleContainer}>
+                <MaterialIcons name="apartment" size={16} color="#666" style={styles.filterTitleIcon} />
+                <Text style={styles.filterTitle}>Room Types</Text>
+              </View>
+              {selectedType && (
+                <TouchableOpacity 
+                  style={styles.clearFilterButton} 
+                  onPress={() => setSelectedType(null)}
+                >
+                  <MaterialIcons name="close" size={12} color="#666" style={styles.clearFilterIcon} />
+                  <Text style={styles.clearFilterText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <AccommodationTypeFilter selectedType={selectedType} onSelectType={setSelectedType} />
           </MotiView>
         )}
@@ -155,7 +170,7 @@ export default function AccommodationScreen() {
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={[
               styles.listContent,
-              { paddingTop: showFilters ? 180 : 120 }, // Adjust based on filters visibility
+              { paddingTop: showFilters ? 220 : 120 }, // Adjusted for the new filter height
             ]}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
@@ -241,8 +256,8 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     marginLeft: 12,
-    width: 44,
-    height: 44,
+    width: 50,
+    height: 50,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f0f0f0",
@@ -256,13 +271,52 @@ const styles = StyleSheet.create({
     top: 112,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "rgba(255, 255, 255, 0.98)",
     zIndex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: 12,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    overflow: "hidden",
+    borderBottomColor: "#eaeaea",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  filterHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  filterTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  filterTitleIcon: {
+    marginRight: 6,
+  },
+  filterTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+  clearFilterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.06)",
+  },
+  clearFilterIcon: {
+    marginRight: 3,
+  },
+  clearFilterText: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "500",
   },
   listContent: {
     paddingHorizontal: 16,

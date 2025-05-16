@@ -144,7 +144,7 @@ export default function AccommodationScreen() {
           >
             <View style={styles.filterHeader}>
               <View style={styles.filterTitleContainer}>
-                <MaterialIcons name="apartment" size={16} color="#666" style={styles.filterTitleIcon} />
+                  <MaterialIcons name="apartment" size={16} color="#666" style={styles.filterTitleIcon} />
                 <Text style={styles.filterTitle}>Room Types</Text>
               </View>
               {selectedType && (

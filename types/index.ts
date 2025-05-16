@@ -81,6 +81,10 @@ export type Conversation = {
     id: string | number
     title: string
   }
+  accommodation?: {
+    id: string | number
+    title: string
+  }
   created_at: string
   updated_at: string
 }

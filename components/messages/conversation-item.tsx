@@ -9,7 +9,16 @@ type ConversationItemProps = {
 }
 
 export default function ConversationItem({ conversation, onPress }: ConversationItemProps) {
-  const { other_user, last_message, unread_count } = conversation
+  const { other_user, last_message, unread_count, listing, accommodation } = conversation
+  
+  // Get the context of the conversation
+  const getConversationContext = () => {
+    if (listing) return `Re: ${listing.title}`;
+    if (accommodation) return `Re: ${accommodation.title}`;
+    return null;
+  };
+  
+  const conversationContext = getConversationContext();
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
@@ -29,6 +38,8 @@ export default function ConversationItem({ conversation, onPress }: Conversation
             {last_message ? formatDistanceToNow(new Date(last_message.created_at), { addSuffix: true }) : ""}
           </Text>
         </View>
+
+        {conversationContext && <Text style={styles.context} numberOfLines={1}>{conversationContext}</Text>}
 
         <View style={styles.messageRow}>
           <Text style={[styles.message, unread_count > 0 && styles.unreadMessage]} numberOfLines={1}>
@@ -103,5 +114,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "bold",
     paddingHorizontal: 4,
+  },
+  context: {
+    fontSize: 12,
+    color: "#0891b2",
+    marginBottom: 4,
   },
 })

@@ -45,20 +45,37 @@ export default function ListingDetailScreen() {
   }, [session, listing])
 
   const handleContact = async () => {
-    if (!session || !listing) return
+    console.log("[Marketplace] Contact seller button clicked");
+    
+    if (!session) {
+      console.log("[Marketplace] Error: No active session");
+      return;
+    }
+    
+    if (!listing) {
+      console.log("[Marketplace] Error: No listing data");
+      return;
+    }
+
+    console.log("[Marketplace] Session user ID:", session.user.id);
+    console.log("[Marketplace] Seller ID:", listing.user.id);
+    console.log("[Marketplace] Listing ID:", listing.id);
 
     try {
       setLoading(true)
+      console.log("[Marketplace] Creating conversation...");
       // Create or get existing conversation
       const conversationId = await createConversation(session.user.id, listing.user.id, listing.id)
+      console.log("[Marketplace] Conversation created/found with ID:", conversationId);
 
       // Navigate to the conversation
+      console.log("[Marketplace] Navigating to conversation screen");
       router.push({
         pathname: "/messages/[id]",
         params: { id: conversationId },
       })
     } catch (error) {
-      console.error("Error creating conversation:", error)
+      console.error("[Marketplace] Error creating conversation:", error)
       Alert.alert("Error", "Failed to start conversation. Please try again.")
     } finally {
       setLoading(false)
@@ -199,7 +216,9 @@ export default function ListingDetailScreen() {
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Category</Text>
-                <Text style={styles.detailValue}>{listing.category?.name || "Not specified"}</Text>
+              <Text style={styles.detailValue}>
+                {(listing as any).category?.name || "Not specified"}
+              </Text>
             </View>
           </View>
 
@@ -222,7 +241,7 @@ export default function ListingDetailScreen() {
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Ionicons name="message-circle" size={20} color="#fff" style={styles.contactIcon} />
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" style={styles.contactIcon} />
                 <Text style={styles.contactButtonText}>Contact Seller</Text>
               </>
             )}

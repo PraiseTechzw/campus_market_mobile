@@ -47,10 +47,25 @@ export default function AccommodationDetailScreen() {
   }, [session, accommodation])
 
   const handleContact = async () => {
-    if (!session || !accommodation) return
+    console.log("[Accommodation] Contact landlord button clicked");
+    
+    if (!session) {
+      console.log("[Accommodation] Error: No active session");
+      return;
+    }
+    
+    if (!accommodation) {
+      console.log("[Accommodation] Error: No accommodation data");
+      return;
+    }
+
+    console.log("[Accommodation] Session user ID:", session.user.id);
+    console.log("[Accommodation] Landlord ID:", accommodation.landlord.id);
+    console.log("[Accommodation] Accommodation ID:", accommodation.id);
 
     try {
       setLoading(true)
+      console.log("[Accommodation] Creating conversation...");
       // Create or get existing conversation
       const conversationId = await createConversation(
         session.user.id,
@@ -58,14 +73,16 @@ export default function AccommodationDetailScreen() {
         undefined,
         accommodation.id,
       )
+      console.log("[Accommodation] Conversation created/found with ID:", conversationId);
 
       // Navigate to the conversation
+      console.log("[Accommodation] Navigating to conversation screen");
       router.push({
         pathname: "/messages/[id]",
         params: { id: conversationId },
       })
     } catch (error) {
-      console.error("Error creating conversation:", error)
+      console.error("[Accommodation] Error creating conversation:", error)
       Alert.alert("Error", "Failed to start conversation. Please try again.")
     } finally {
       setLoading(false)

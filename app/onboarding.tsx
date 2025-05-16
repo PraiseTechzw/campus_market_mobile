@@ -31,23 +31,23 @@ const { width } = Dimensions.get("window")
 
 // Map category names to icons
 const categoryIcons: Record<string, any> = {
-    Books: Ionicons.book,
-  Electronics: Ionicons.laptop,
-  Clothing: Ionicons.shirt,
-  Furniture: Ionicons.bed,
-  Food: Ionicons.restaurant,
-  Services: Ionicons.briefcase,
-  Other: Ionicons.package,
+  Books: (props: any) => <Ionicons name="book-outline" {...props} />,
+  Electronics: (props: any) => <Ionicons name="hardware-chip-outline" {...props} />,
+  Clothing: (props: any) => <Ionicons name="shirt-outline" {...props} />,
+  Furniture: (props: any) => <Ionicons name="bed-outline" {...props} />,
+  Food: (props: any) => <Ionicons name="restaurant-outline" {...props} />,
+  Services: (props: any) => <Ionicons name="briefcase-outline" {...props} />,
+  Other: (props: any) => <Ionicons name="cube-outline" {...props} />,
 }
 
 // Map accommodation types to icons
 const accommodationIcons: Record<string, any> = {
-  "Single Room": Ionicons.home,
-  "2-Share": Ionicons.people,
-  "3-Share": Ionicons.people,
-  "Self-Contained": Ionicons.bath,
-  Apartment: Ionicons.building,
-  House: Ionicons.door,
+  "Single Room": (props: any) => <Ionicons name="home-outline" {...props} />,
+  "2-Share": (props: any) => <Ionicons name="people-outline" {...props} />,
+  "3-Share": (props: any) => <Ionicons name="people-outline" {...props} />,
+  "Self-Contained": (props: any) => <Ionicons name="water-outline" {...props} />,
+  Apartment: (props: any) => <Ionicons name="business-outline" {...props} />,
+  House: (props: any) => <Ionicons name="home-outline" {...props} />,
 }
 
 export default function OnboardingScreen() {
@@ -128,32 +128,32 @@ function OnboardingContent() {
     {
       title: "Welcome to UniConnect",
       description: "Let's set up your profile to get the most out of the app.",
-      icon: Ionicons.sparkles,
+      icon: (props: any) => <Ionicons name="sparkles-outline" {...props} />,
     },
     {
       title: "Tell us about yourself",
       description: "Please enter your name so other students can recognize you.",
-      icon: Ionicons.person,
+      icon: (props: any) => <Ionicons name="person-outline" {...props} />,
     },
     {
       title: "Select your campus",
       description: "Choose your university to see relevant listings and accommodations.",
-        icon: Ionicons.map,
+      icon: (props: any) => <Ionicons name="map-outline" {...props} />,
     },
     {
       title: "What are you interested in?",
       description: "Select categories you're interested in to get personalized recommendations.",
-      icon: Ionicons.bag,
+      icon: (props: any) => <Ionicons name="bag-outline" {...props} />,
     },
     {
       title: "What type of accommodation do you prefer?",
       description: "Select accommodation types you're interested in.",
-      icon: Ionicons.building,
+      icon: (props: any) => <Ionicons name="business-outline" {...props} />,
     },
     {
       title: "You're all set!",
       description: "Your profile is now complete. Enjoy using UniConnect!",
-      icon: Ionicons.sparkles,
+      icon: (props: any) => <Ionicons name="sparkles-outline" {...props} />,
     },
   ]
 
@@ -338,7 +338,7 @@ function OnboardingContent() {
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>First Name</Text>
                 <View style={styles.inputWrapper}>
-                  <User size={20} color="#666" style={styles.inputIcon} />
+                  <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={firstName}
@@ -351,7 +351,7 @@ function OnboardingContent() {
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Last Name</Text>
                 <View style={styles.inputWrapper}>
-                  <User size={20} color="#666" style={styles.inputIcon} />
+                  <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={lastName}
@@ -371,11 +371,7 @@ function OnboardingContent() {
                   style={[styles.optionItem, selectedCampusId === campus.id && styles.selectedOptionItem]}
                   onPress={() => setSelectedCampusId(campus.id.toString())}
                 >
-                  <MapPin
-                    size={20}
-                    color={selectedCampusId === campus.id ? "#fff" : "#666"}
-                    style={styles.optionIcon}
-                  />
+                  <Ionicons name="map-pin-outline" size={20} color={selectedCampusId === campus.id ? "#fff" : "#666"} style={styles.optionIcon} />
                   <View style={styles.optionTextContainer}>
                     <Text style={[styles.optionText, selectedCampusId === campus.id && styles.selectedOptionText]}>
                       {campus.name}
@@ -386,7 +382,9 @@ function OnboardingContent() {
                       {campus.location}
                     </Text>
                   </View>
-                  {selectedCampusId === campus.id && <Check size={20} color="#fff" style={styles.checkIcon} />}
+                      {selectedCampusId === campus.id && (
+                    <Ionicons name="checkmark-outline" size={20} color="#fff" style={styles.checkIcon} />
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -419,7 +417,7 @@ function OnboardingContent() {
                       {category.name}
                     </Text>
                     {selectedCategories.includes(category.id.toString()) && (
-                      <Check size={16} color="#fff" style={styles.checkIcon} />
+                      <Ionicons name="checkmark-outline" size={16} color="#fff" style={styles.checkIcon} />
                     )}
                   </TouchableOpacity>
                 )
@@ -430,7 +428,7 @@ function OnboardingContent() {
           {index === 4 && accommodationTypes && (
             <View style={styles.interestsGrid}>
               {accommodationTypes.map((type) => {
-                const AccommodationIcon = accommodationIcons[type.name] || Building
+                const AccommodationIcon = accommodationIcons[type.name] || ((props) => <Ionicons name="business-outline" {...props} />)
                 return (
                   <TouchableOpacity
                     key={type.id.toString()}
@@ -454,7 +452,7 @@ function OnboardingContent() {
                       {type.name}
                     </Text>
                     {selectedAccommodationTypes.includes(type.id.toString()) && (
-                      <Check size={16} color="#fff" style={styles.checkIcon} />
+                      <Ionicons name="checkmark-outline" size={16} color="#fff" style={styles.checkIcon} />
                     )}
                   </TouchableOpacity>
                 )
@@ -519,7 +517,7 @@ function OnboardingContent() {
               onPress={nextStep}
             >
               <Text style={styles.nextButtonText}>Next</Text>
-              <ChevronRight size={20} color="#fff" />
+              <Ionicons name="chevron-forward-outline" size={20} color="#fff" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity

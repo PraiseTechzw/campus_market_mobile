@@ -126,7 +126,20 @@ export default function ConversationScreen() {
           <Text style={styles.headerName}>
             {conversation.other_user.first_name} {conversation.other_user.last_name}
           </Text>
-          {conversation.listing && <Text style={styles.headerSubtitle}>Re: {conversation.listing.title}</Text>}
+          {conversation.listing && (
+            <TouchableOpacity 
+              onPress={() => router.push(`/marketplace/${conversation.listing.id}`)}
+            >
+              <Text style={styles.headerSubtitle}>Re: {conversation.listing.title}</Text>
+            </TouchableOpacity>
+          )}
+          {conversation.accommodation && (
+            <TouchableOpacity 
+              onPress={() => router.push(`/accommodation/${conversation.accommodation.id}`)}
+            >
+              <Text style={styles.headerSubtitle}>Re: {conversation.accommodation.title}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

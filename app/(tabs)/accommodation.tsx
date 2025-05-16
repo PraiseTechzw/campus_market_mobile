@@ -129,6 +129,9 @@ export default function AccommodationScreen() {
               size={20}
               color={showFilters ? "#fff" : Colors[colorScheme ?? "light"].text}
             />
+            <Text style={[styles.filterButtonText, showFilters && styles.filterButtonTextActive]}>
+              Filters
+            </Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -256,15 +259,25 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     marginLeft: 12,
-    width: 50,
+    width: 96,
     height: 50,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f0f0f0",
     borderRadius: 12,
+    gap: 6,
   },
   filterButtonActive: {
     backgroundColor: Colors.light.tint,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#666",
+  },
+  filterButtonTextActive: {
+    color: "#fff",
   },
   filtersContainer: {
     position: "absolute",

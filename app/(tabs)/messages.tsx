@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { StyleSheet, RefreshControl, TouchableOpacity, Animated, TextInput } from "react-native"
+import { StyleSheet, RefreshControl, TouchableOpacity, Animated, TextInput, Alert } from "react-native"
 import { Text, View } from "@/components/themed"
 import { useQuery } from "@tanstack/react-query"
-import { getConversations } from "@/services/messages"
+import { getConversations, cleanupDuplicateConversations } from "@/services/messages"
 import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"
@@ -17,11 +17,13 @@ import SafeAreaWrapper from "@/components/safe-area-wrapper"
 import { MaterialIcons } from "@expo/vector-icons"
 import { useToast } from "@/providers/toast-provider"
 import { MotiView } from "moti"
+import { Ionicons } from "@expo/vector-icons"
 
 export default function MessagesScreen() {
   const { session } = useSession()
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [cleaning, setCleaning] = useState(false)
   const colorScheme = useColorScheme()
   const router = useRouter()
   const toast = useToast()
@@ -36,6 +38,58 @@ export default function MessagesScreen() {
     queryFn: () => getConversations(searchQuery),
     enabled: !!session,
   })
+
+  // Handle cleanup of duplicate conversations
+  const handleCleanup = async () => {
+    if (!session) return;
+    
+    try {
+      setCleaning(true);
+      const { cleaned, error } = await cleanupDuplicateConversations(session.user.id);
+      
+      if (error) {
+        toast.show({
+          type: "error",
+          title: "Cleanup Failed",
+          message: "Could not clean up conversations. Please try again.",
+        });
+        console.error("Cleanup error:", error);
+      } else {
+        if (cleaned > 0) {
+          toast.show({
+            type: "success",
+            title: "Cleanup Complete",
+            message: `Successfully cleaned up ${cleaned} duplicate conversations`,
+          });
+          // Refresh the conversation list
+          await refetch();
+        } else {
+          toast.show({
+            type: "info",
+            title: "No Duplicates Found",
+            message: "Your messages are already optimized.",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+      toast.show({
+        type: "error",
+        title: "Error",
+        message: "An unexpected error occurred",
+      });
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  useEffect(() => {
+    // Force refresh conversations data when component mounts
+    if (session) {
+      console.log("Forcefully refetching conversations on mount");
+      refetch();
+    }
+  }, [session, refetch]);
 
   useEffect(() => {
     // Subscribe to new messages
@@ -123,9 +177,15 @@ export default function MessagesScreen() {
           ]}
         >
           <Text style={styles.headerTitle}>Messages</Text>
-          <TouchableOpacity onPress={() => router.push("/messages/new")}>
-            <MaterialIcons name="add" size={24} color={Colors[colorScheme ?? "light"].text} />
+          <View style={styles.headerButtons}>
+            {cleaning && <ActivityIndicator size="small" color={Colors[colorScheme ?? "light"].tint} style={styles.cleanupLoader} />}
+            <TouchableOpacity onPress={handleCleanup} disabled={cleaning || isLoading} style={styles.headerButton}>
+              <Ionicons name="cleaning-services" size={20} color={Colors[colorScheme ?? "light"].text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/messages/new")} style={styles.headerButton}>
+              <Ionicons name="add" size={24} color={Colors[colorScheme ?? "light"].text} />
           </TouchableOpacity>
+          </View>
         </Animated.View>
 
         <Animated.View
@@ -146,6 +206,11 @@ export default function MessagesScreen() {
               returnKeyType="search"
               clearButtonMode="while-editing"
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <MaterialIcons name="close" size={20} color="#666" />
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
 
@@ -160,14 +225,27 @@ export default function MessagesScreen() {
             renderItem={renderItem}
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={[styles.listContent, { paddingTop: 120 }]}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={onRefresh} 
+                colors={[Colors[colorScheme ?? "light"].tint]}
+                tintColor={Colors[colorScheme ?? "light"].tint}
+              />
+            }
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                {/* <Image
-                  source={require("@/assets/images/empty-messages.png")}
-                  style={styles.emptyImage}
-                  resizeMode="contain"
-                /> */}
+              <MotiView 
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 500 }}
+                style={styles.emptyContainer}
+              >
+                <MaterialIcons 
+                  name="forum" 
+                  size={70} 
+                  color={Colors[colorScheme ?? "light"].tint} 
+                  style={{ opacity: 0.8 }}
+                />
                 <Text style={styles.emptyTitle}>No conversations yet</Text>
                 <Text style={styles.emptyText}>
                   Start a conversation by messaging a seller or landlord from a listing
@@ -179,11 +257,23 @@ export default function MessagesScreen() {
                 >
                   <Text style={styles.emptyButtonText}>Browse Marketplace</Text>
                 </TouchableOpacity>
-              </View>
+              </MotiView>
             }
             onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
             scrollEventThrottle={16}
           />
+        )}
+
+        {!isLoading && filteredConversations?.length === 0 && searchQuery && (
+          <MotiView 
+            from={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            style={styles.noResultsContainer}
+          >
+            <MaterialIcons name="search-off" size={40} color="#999" />
+            <Text style={styles.noResultsText}>No results found</Text>
+            <Text style={styles.noResultsSubtext}>Try a different search term</Text>
+          </MotiView>
         )}
       </View>
     </SafeAreaWrapper>
@@ -280,5 +370,30 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 4,
+  },
+  cleanupLoader: {
+    marginRight: 4,
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  noResultsText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  noResultsSubtext: {
+    color: "#666",
   },
 })

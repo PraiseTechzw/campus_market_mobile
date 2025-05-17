@@ -45,7 +45,7 @@ export default function ListingCard({ listing, style }: ListingCardProps) {
         </Text>
         
         <View style={styles.bottomRow}>
-          <Text style={styles.time}>{formatDistanceToNow(new Date(listing.created_at), { addSuffix: true })}</Text>
+        <Text style={styles.time}>{formatDistanceToNow(new Date(listing.created_at), { addSuffix: true })}</Text>
           
           <View style={styles.ratingContainer}>
             {rating > 0 && (

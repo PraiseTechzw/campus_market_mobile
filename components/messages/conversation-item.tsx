@@ -1,7 +1,11 @@
-import { StyleSheet, TouchableOpacity, Image } from "react-native"
+import { StyleSheet, TouchableOpacity, Image, View as RNView } from "react-native"
 import { Text, View } from "@/components/themed"
 import type { Conversation } from "@/types"
 import { formatDistanceToNow } from "date-fns"
+import { Ionicons } from "@expo/vector-icons"
+import Colors from "@/constants/Colors"
+import { useColorScheme } from "@/hooks/use-color-scheme"
+import { BlurView } from "expo-blur"
 
 type ConversationItemProps = {
   conversation: Conversation
@@ -10,40 +14,103 @@ type ConversationItemProps = {
 
 export default function ConversationItem({ conversation, onPress }: ConversationItemProps) {
   const { other_user, last_message, unread_count, listing, accommodation } = conversation
+  const colorScheme = useColorScheme()
   
   // Get the context of the conversation
   const getConversationContext = () => {
-    if (listing) return `Re: ${listing.title}`;
-    if (accommodation) return `Re: ${accommodation.title}`;
+    if (listing) return { 
+      type: 'listing',
+      title: listing.title,
+      icon: 'pricetag-outline'
+    };
+    
+    if (accommodation) return {
+      type: 'accommodation',
+      title: accommodation.title,
+      icon: 'home-outline'
+    };
+    
     return null;
   };
   
   const conversationContext = getConversationContext();
 
+  // Format the message preview
+  const getMessagePreview = () => {
+    if (!last_message) return "No messages yet";
+    
+    // Check if it's a system message about listing or accommodation
+    const isListingInfo = last_message.content.includes('*Marketplace Listing Details*');
+    const isAccommodationInfo = last_message.content.includes('*Accommodation Details*');
+    
+    if (isListingInfo) {
+      return "📦 Information about this listing";
+    } else if (isAccommodationInfo) {
+      return "🏠 Information about this accommodation";
+    } 
+    
+    // Regular message - show the content
+    return last_message.content;
+  };
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity 
+      style={[
+        styles.container, 
+        unread_count > 0 && styles.unreadContainer
+      ]} 
+      onPress={onPress} 
+      activeOpacity={0.7}
+    >
+      <RNView style={styles.avatarContainer}>
       <Image
         source={{
-          uri: other_user.avatar_url || "/placeholder.svg?height=50&width=50",
+            uri: other_user?.avatar_url || "https://via.placeholder.com/50x50?text=User",
         }}
         style={styles.avatar}
       />
+        {unread_count > 0 && (
+          <RNView style={styles.badgeDot} />
+        )}
+      </RNView>
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.name}>
-            {other_user.first_name} {other_user.last_name}
+          <Text style={[
+            styles.name,
+            unread_count > 0 && styles.unreadName
+          ]}>
+            {other_user?.first_name} {other_user?.last_name}
           </Text>
           <Text style={styles.time}>
             {last_message ? formatDistanceToNow(new Date(last_message.created_at), { addSuffix: true }) : ""}
           </Text>
         </View>
 
-        {conversationContext && <Text style={styles.context} numberOfLines={1}>{conversationContext}</Text>}
+        {conversationContext && (
+          <View style={styles.contextContainer}>
+            <Ionicons 
+              name={conversationContext.icon} 
+              size={12} 
+              color={Colors[colorScheme ?? "light"].tint} 
+              style={styles.contextIcon}
+            />
+            <Text style={styles.context} numberOfLines={1}>
+              {conversationContext.type === 'listing' ? 'Marketplace: ' : 'Accommodation: '}
+              {conversationContext.title}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.messageRow}>
-          <Text style={[styles.message, unread_count > 0 && styles.unreadMessage]} numberOfLines={1}>
-            {last_message ? last_message.content : "No messages yet"}
+          <Text 
+            style={[
+              styles.message, 
+              unread_count > 0 && styles.unreadMessage
+            ]} 
+            numberOfLines={1}
+          >
+            {getMessagePreview()}
           </Text>
 
           {unread_count > 0 && (
@@ -63,12 +130,31 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
+    position: 'relative',
+  },
+  unreadContainer: {
+    backgroundColor: "rgba(8, 145, 178, 0.06)",
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 12,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#f0f0f0",
+  },
+  badgeDot: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#0891b2",
+    borderWidth: 2,
+    borderColor: "#fff",
+    bottom: 0,
+    right: 0,
   },
   content: {
     flex: 1,
@@ -77,15 +163,33 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center", 
     marginBottom: 4,
   },
   name: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "500",
+  },
+  unreadName: {
+    fontWeight: "700",
   },
   time: {
     fontSize: 12,
     color: "#999",
+  },
+  contextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  contextIcon: {
+    marginRight: 4,
+  },
+  context: {
+    fontSize: 12,
+    color: "#0891b2",
+    fontWeight: '500',
   },
   messageRow: {
     flexDirection: "row",
@@ -97,8 +201,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   unreadMessage: {
-    fontWeight: "bold",
-    color: "#000",
+    fontWeight: "600",
+    color: "#333",
   },
   unreadBadge: {
     backgroundColor: "#0891b2",
@@ -114,10 +218,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "bold",
     paddingHorizontal: 4,
-  },
-  context: {
-    fontSize: 12,
-    color: "#0891b2",
-    marginBottom: 4,
   },
 })

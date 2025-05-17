@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import SafeAreaWrapper from "@/components/safe-area-wrapper"
 import { BlurView } from "expo-blur"
+import React from "react"
 
 export default function AccommodationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -108,7 +109,7 @@ export default function AccommodationDetailScreen() {
 
     try {
       await Share.share({
-        message: `Check out this accommodation on UniConnect: ${accommodation.title} - $${accommodation.rent}/month`,
+        message: `Check out this accommodation on aAmpus Market: ${accommodation.title} - $${accommodation.rent}/month`,
         // In a real app, you would include a deep link URL here
       })
     } catch (error) {
@@ -344,6 +345,7 @@ export default function AccommodationDetailScreen() {
                   </>
                 )}
               </TouchableOpacity>
+              
               <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
                 <Text style={styles.applyButtonText}>Apply Now</Text>
               </TouchableOpacity>

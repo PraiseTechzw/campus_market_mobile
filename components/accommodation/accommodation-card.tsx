@@ -99,11 +99,11 @@ export default function AccommodationCard({ accommodation, style }: Accommodatio
               </Text>
             </View>
           ) : (
-            <View style={styles.detailBadge}>
-              <Text style={styles.detailBadgeText}>
-                {accommodation.type?.name || "Room"}
-              </Text>
-            </View>
+          <View style={styles.detailBadge}>
+            <Text style={styles.detailBadgeText}>
+              {accommodation.type?.name || "Room"}
+            </Text>
+          </View>
           )}
         </View>
       </View>

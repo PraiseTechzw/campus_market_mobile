@@ -13,7 +13,8 @@ import ReviewForm from "./review-form"
 import RatingStars from "./rating-stars"
 import { Alert } from "react-native"
 import React from "react"
-import {Ionicons} from ""
+import { Ionicons } from "@expo/vector-icons"
+
 type ReviewsSectionProps = {
   userId?: string
   listingId?: string | number
@@ -110,9 +111,9 @@ export default function ReviewsSection({ userId, listingId, accommodationId, rev
             <TouchableOpacity style={styles.showMoreButton} onPress={() => setShowAllReviews(!showAllReviews)}>
               <Text style={styles.showMoreText}>{showAllReviews ? "Show Less" : `Show All (${reviews.length})`}</Text>
               {showAllReviews ? (
-                <ChevronUp size={16} color={Colors[colorScheme ?? "light"].tint} />
+                <Ionicons name="chevron-up" size={16} color={Colors[colorScheme ?? "light"].tint} />
               ) : (
-                <ChevronDown size={16} color={Colors[colorScheme ?? "light"].tint} />
+                <Ionicons name="chevron-down" size={16} color={Colors[colorScheme ?? "light"].tint} />
               )}
             </TouchableOpacity>
           )}

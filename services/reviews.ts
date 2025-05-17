@@ -145,3 +145,49 @@ export async function getUserRating(userId: string) {
     return { rating: 0, count: 0 }
   }
 }
+
+export async function getListingRating(listingId: string | number) {
+  try {
+    const { data, error, count } = await supabase
+      .from("reviews")
+      .select("rating", { count: "exact" })
+      .eq("listing_id", listingId)
+
+    if (error) throw error
+
+    if (!data || data.length === 0) {
+      return { rating: 0, count: 0 }
+    }
+
+    const totalRating = data.reduce((sum, review) => sum + review.rating, 0)
+    const averageRating = totalRating / data.length
+
+    return { rating: averageRating, count: count || 0 }
+  } catch (error) {
+    console.error("Error fetching listing rating:", error)
+    return { rating: 0, count: 0 }
+  }
+}
+
+export async function getAccommodationRating(accommodationId: string | number) {
+  try {
+    const { data, error, count } = await supabase
+      .from("reviews")
+      .select("rating", { count: "exact" })
+      .eq("accommodation_id", accommodationId)
+
+    if (error) throw error
+
+    if (!data || data.length === 0) {
+      return { rating: 0, count: 0 }
+    }
+
+    const totalRating = data.reduce((sum, review) => sum + review.rating, 0)
+    const averageRating = totalRating / data.length
+
+    return { rating: averageRating, count: count || 0 }
+  } catch (error) {
+    console.error("Error fetching accommodation rating:", error)
+    return { rating: 0, count: 0 }
+  }
+}

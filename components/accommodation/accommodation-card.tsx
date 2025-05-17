@@ -8,6 +8,9 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons"
 import Colors from "@/constants/Colors"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import { LinearGradient } from "expo-linear-gradient"
+import { getAccommodationRating } from "@/services/reviews"
+import { useQuery } from "@tanstack/react-query"
+import RatingStars from "@/components/reviews/rating-stars"
 
 const { width } = Dimensions.get("window")
 
@@ -19,6 +22,14 @@ type AccommodationCardProps = {
 export default function AccommodationCard({ accommodation, style }: AccommodationCardProps) {
   const router = useRouter()
   const colorScheme = useColorScheme()
+
+  const { data: ratingData } = useQuery({
+    queryKey: ["accommodationRating", accommodation.id],
+    queryFn: () => getAccommodationRating(accommodation.id),
+  })
+
+  const rating = ratingData?.rating || 0
+  const reviewCount = ratingData?.count || 0
 
   const handlePress = () => {
     router.push({
@@ -80,11 +91,20 @@ export default function AccommodationCard({ accommodation, style }: Accommodatio
             </Text>
           </View>
 
-          <View style={styles.detailBadge}>
-            <Text style={styles.detailBadgeText}>
-              {accommodation.type?.name || "Room"}
-            </Text>
-          </View>
+          {rating > 0 ? (
+            <View style={styles.ratingContainer}>
+              <RatingStars rating={rating} size={12} />
+              <Text style={styles.ratingText}>
+                {rating.toFixed(1)} ({reviewCount})
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.detailBadge}>
+              <Text style={styles.detailBadgeText}>
+                {accommodation.type?.name || "Room"}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -207,5 +227,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#3b82f6",
     fontWeight: "500",
+  },
+  ratingContainer: {
+    marginLeft: 'auto',
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ratingText: {
+    fontSize: 11,
+    color: "#666",
+    marginLeft: 4,
   },
 })

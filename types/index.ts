@@ -58,6 +58,8 @@ export type Profile = {
   email: string
   phone?: string
   avatar_url?: string
+  header_url?: string
+  bio?: string
   student_id_url?: string
   verification_status?: "pending" | "verified" | "rejected"
   is_verified: boolean

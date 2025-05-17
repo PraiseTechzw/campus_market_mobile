@@ -2,7 +2,7 @@
 
 import FontAwesome from "@expo/vector-icons/FontAwesome"
 import { useFonts } from "expo-font"
-import { Stack } from "expo-router"
+import { Stack, useRouter } from "expo-router"
 import * as SplashScreen from "expo-splash-screen"
 import { useEffect, useRef } from "react"
 import { useColorScheme } from "@/hooks/use-color-scheme"
@@ -13,9 +13,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AppState, type AppStateStatus } from "react-native"
 import NetInfo from "@react-native-community/netinfo"
 import { initBackgroundSync, syncPendingOperations } from "@/lib/offline-sync"
-import { registerForPushNotifications, savePushToken, addNotificationListeners } from "@/lib/notifications"
+import { registerForPushNotifications, savePushToken, addNotificationListeners, sendLocalNotification } from "@/lib/notifications"
 import { supabase } from "@/lib/supabase"
 import { StatusBar } from "expo-status-bar"
+import * as Notifications from "expo-notifications"
+import * as Device from "expo-device"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -70,6 +72,7 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme()
   const appState = useRef(AppState.currentState)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const router = useRouter()
 
   // Handle app state changes (background/foreground)
   useEffect(() => {
@@ -79,7 +82,10 @@ function RootLayoutNav() {
     cleanupRef.current = initBackgroundSync()
 
     // Setup push notifications
-    setupPushNotifications()
+    const pushNotificationCleanup = setupPushNotifications()
+
+    // Setup notification subscription for real-time notifications
+    const notificationSubscription = setupNotificationSubscription()
 
     // Setup network change listener
     const unsubscribeNetInfo = NetInfo.addEventListener(handleNetworkChange)
@@ -88,6 +94,14 @@ function RootLayoutNav() {
       subscription.remove()
       if (cleanupRef.current) {
         cleanupRef.current()
+      }
+      if (pushNotificationCleanup) {
+        pushNotificationCleanup.then(cleanup => {
+          if (cleanup) cleanup()
+        })
+      }
+      if (notificationSubscription) {
+        notificationSubscription()
       }
       unsubscribeNetInfo()
     }
@@ -115,6 +129,41 @@ function RootLayoutNav() {
     }
   }
 
+  // Set up real-time notifications using Supabase
+  const setupNotificationSubscription = () => {
+    const { data: authData } = supabase.auth.getSession()
+    if (!authData) return null
+    
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${authData?.session?.user.id}`,
+        },
+        (payload) => {
+          // New notification received
+          const notification = payload.new as any
+          
+          // Refresh unread notification count
+          queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] })
+          
+          // Show local notification if app is in background
+          if (appState.current !== 'active' && Device.isDevice) {
+            sendLocalNotification(notification.title, notification.body, notification.data)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }
+
   const setupPushNotifications = async () => {
     // Register for push notifications
     const token = await registerForPushNotifications()
@@ -122,7 +171,7 @@ function RootLayoutNav() {
     if (token) {
       // Get current user
       const { data } = await supabase.auth.getUser()
-      if (data.user) {
+      if (data?.user) {
         // Save token to user profile
         await savePushToken(data.user.id, token)
       }
@@ -130,12 +179,41 @@ function RootLayoutNav() {
       // Add notification listeners
       const cleanup = addNotificationListeners(
         (notification) => {
+          // Notification received while app is in foreground
           console.log("Notification received:", notification)
+          // Refresh unread count
+          queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] })
         },
         (response) => {
-          const data = response.notification.request.content.data
+          // User tapped on a notification
+          const data = response.notification.request.content.data as any
           console.log("Notification response:", data)
-          // Handle notification response (e.g., navigate to a specific screen)
+          
+          // Navigate based on notification type
+          if (data) {
+            const { type, id } = data
+            
+            switch (type) {
+              case "listing":
+                router.push(`/marketplace/listing/${id}`)
+                break
+              case "accommodation":
+                router.push(`/accommodation/${id}`)
+                break
+              case "message":
+                router.push(`/messages/${id}`)
+                break
+              case "event":
+                router.push(`/events/${id}`)
+                break
+              default:
+                router.push('/activity')
+                break
+            }
+          } else {
+            // Default to activity screen
+            router.push('/activity')
+          }
         },
       )
 

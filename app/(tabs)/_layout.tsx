@@ -6,6 +6,9 @@ import Colors from "@/constants/Colors"
 import { MaterialIcons } from "@expo/vector-icons"
 import AuthGuard from "@/components/auth-guard"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useQuery } from "@tanstack/react-query"
+import { getUnreadNotificationsCount } from "@/services/notifications"
+import { useSession } from "@/providers/session-provider"
 
 export default function TabLayout() {
   return (
@@ -18,6 +21,15 @@ export default function TabLayout() {
 function TabNavigator() {
   const colorScheme = useColorScheme()
   const insets = useSafeAreaInsets()
+  const { session } = useSession()
+  
+  // Get unread notification count
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["unreadNotifications", session?.user.id],
+    queryFn: () => (session?.user.id ? getUnreadNotificationsCount(session.user.id) : Promise.resolve(0)),
+    enabled: !!session?.user.id,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  })
 
   const tabBarStyle = {
     position: "absolute" as const,
@@ -84,7 +96,14 @@ function TabNavigator() {
         name="activity"
         options={{
           title: "Activity",
-          tabBarIcon: ({ color, focused }) => <TabBarIcon name="notifications" color={color} focused={focused} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon 
+              name="notifications" 
+              color={color} 
+              focused={focused} 
+              badgeCount={unreadCount} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
@@ -104,11 +123,33 @@ function TabNavigator() {
   )
 }
 
-function TabBarIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
+function TabBarIcon({ 
+  name, 
+  color, 
+  focused, 
+  badgeCount = 0 
+}: { 
+  name: string; 
+  color: string; 
+  focused: boolean; 
+  badgeCount?: number;
+}) {
   return (
     <View style={styles.iconContainer}>
       <MaterialIcons name={name as any} size={24} color={color} />
       {focused && <View style={[styles.indicator, { backgroundColor: color }]} />}
+      
+      {badgeCount > 0 && (
+        <View style={styles.badge}>
+          <View style={styles.badgeTextContainer}>
+            <MaterialIcons 
+              name="circle" 
+              size={badgeCount > 99 ? 18 : badgeCount > 9 ? 16 : 14} 
+              color="#ff3b30" 
+            />
+          </View>
+        </View>
+      )}
     </View>
   )
 }
@@ -124,5 +165,19 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
+  },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: -6,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeTextContainer: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 })

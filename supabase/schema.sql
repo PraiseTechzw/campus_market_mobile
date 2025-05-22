@@ -1,879 +1,776 @@
--- Clear existing triggers and functions first without referencing tables that don't exist yet
-DROP FUNCTION IF EXISTS handle_new_user() CASCADE;
-DROP FUNCTION IF EXISTS handle_user_delete() CASCADE;
-DROP FUNCTION IF EXISTS update_profile_updated_at() CASCADE;
-DROP FUNCTION IF EXISTS update_seller_rating() CASCADE;
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Drop existing tables if they exist using CASCADE to handle dependencies automatically
-DROP TABLE IF EXISTS seller_ratings CASCADE;
-DROP TABLE IF EXISTS user_settings CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE; 
-DROP TABLE IF EXISTS payment_records CASCADE;
-DROP TABLE IF EXISTS reports CASCADE;
-DROP TABLE IF EXISTS product_favorites CASCADE;
-DROP TABLE IF EXISTS accommodation_favorites CASCADE;
-DROP TABLE IF EXISTS accommodation_reviews CASCADE;
-DROP TABLE IF EXISTS accommodation_bookings CASCADE;
-DROP TABLE IF EXISTS accommodation_listings CASCADE;
-DROP TABLE IF EXISTS accommodation_amenities CASCADE;
-DROP TABLE IF EXISTS accommodation_types CASCADE;
-DROP TABLE IF EXISTS messages CASCADE;
-DROP TABLE IF EXISTS conversations CASCADE;
-DROP TABLE IF EXISTS orders CASCADE;
-DROP TABLE IF EXISTS products CASCADE;
-DROP TABLE IF EXISTS categories CASCADE;
-DROP TABLE IF EXISTS banners CASCADE;
-DROP TABLE IF EXISTS profiles CASCADE;
+-- Create custom types
+CREATE TYPE user_role AS ENUM ('user', 'admin');
+CREATE TYPE user_status AS ENUM ('active', 'pending', 'inactive');
+CREATE TYPE accommodation_status AS ENUM ('available', 'pending', 'occupied', 'maintenance');
+CREATE TYPE product_status AS ENUM ('active', 'pending', 'sold', 'removed');
+CREATE TYPE product_condition AS ENUM ('New', 'Like New', 'Good', 'Fair', 'Poor');
 
--- We need to create all tables first, then create triggers and policies
-
--- Create profiles table first (since other tables depend on it)
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  first_name TEXT,
-  last_name TEXT,
-  full_name TEXT,
-  phone TEXT,
-  avatar_url TEXT,
-  bio TEXT,
-  rating NUMERIC,
-  role TEXT DEFAULT 'student',
-  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
-  is_seller BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Create tables
+-- Universities table
+CREATE TABLE universities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    location TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create categories table
-CREATE TABLE categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  icon TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Users table (extends Supabase auth.users)
+CREATE TABLE users (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    university_id UUID REFERENCES universities(id),
+    role user_role NOT NULL DEFAULT 'user',
+    status user_status NOT NULL DEFAULT 'pending',
+    verified BOOLEAN NOT NULL DEFAULT FALSE,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create products table
-CREATE TABLE products (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  price NUMERIC NOT NULL,
-  description TEXT,
-  category_id UUID REFERENCES categories(id),
-  condition TEXT CHECK (condition IN ('new', 'like_new', 'good', 'used', 'worn')),
-  images TEXT[] DEFAULT '{}',
-  tags TEXT[] DEFAULT '{}',
-  is_negotiable BOOLEAN DEFAULT FALSE,
-  is_urgent BOOLEAN DEFAULT FALSE,
-  featured BOOLEAN DEFAULT FALSE,
-  seller_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Locations table
+CREATE TABLE locations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    city TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create conversations table
-CREATE TABLE conversations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  participants UUID[] NOT NULL,
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
--- Create messages table
-CREATE TABLE messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
-  sender_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  text TEXT NOT NULL,
-  timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  read BOOLEAN DEFAULT FALSE
-);
-
--- Create orders table
-CREATE TABLE orders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  buyer_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  seller_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  status TEXT CHECK (status IN ('pending', 'confirmed', 'delivered', 'cancelled')) DEFAULT 'pending',
-  price NUMERIC NOT NULL,
-  payment_method TEXT,
-  delivery_address TEXT,
-  delivery_notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
--- Create banners table
-CREATE TABLE banners (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  description TEXT,
-  image_url TEXT,
-  action_url TEXT,
-  active BOOLEAN DEFAULT TRUE,
-  start_date TIMESTAMP WITH TIME ZONE,
-  end_date TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
--- Create accommodation_types table
+-- Accommodation types table
 CREATE TABLE accommodation_types (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  description TEXT,
-  icon TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create accommodation_amenities table
+-- Amenities table
+CREATE TABLE amenities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    icon TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Accommodations table
+CREATE TABLE accommodations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    location_id UUID NOT NULL REFERENCES locations(id),
+    type_id UUID NOT NULL REFERENCES accommodation_types(id),
+    owner_id UUID NOT NULL REFERENCES users(id),
+    status accommodation_status NOT NULL DEFAULT 'pending',
+    featured BOOLEAN NOT NULL DEFAULT FALSE,
+    verified BOOLEAN NOT NULL DEFAULT FALSE,
+    rating SMALLINT,
+    reviews_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Accommodation amenities junction table
 CREATE TABLE accommodation_amenities (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  icon TEXT NOT NULL,
-  category TEXT CHECK (category IN ('essential', 'feature', 'safety', 'location')),
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    accommodation_id UUID REFERENCES accommodations(id) ON DELETE CASCADE,
+    amenity_id UUID REFERENCES amenities(id) ON DELETE CASCADE,
+    PRIMARY KEY (accommodation_id, amenity_id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create accommodation_listings table
-CREATE TABLE accommodation_listings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  owner_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  type_id UUID REFERENCES accommodation_types(id),
-  amenities UUID[] DEFAULT '{}',
-  price_per_month NUMERIC NOT NULL,
-  security_deposit NUMERIC,
-  bedrooms INTEGER NOT NULL DEFAULT 1,
-  bathrooms INTEGER NOT NULL DEFAULT 1,
-  max_occupants INTEGER NOT NULL DEFAULT 1,
-  address TEXT NOT NULL,
-  location_lat NUMERIC,
-  location_lng NUMERIC,
-  images TEXT[] DEFAULT '{}',
-  available_from DATE NOT NULL,
-  minimum_stay_months INTEGER DEFAULT 1,
-  is_furnished BOOLEAN DEFAULT FALSE,
-  is_verified BOOLEAN DEFAULT FALSE,
-  is_active BOOLEAN DEFAULT TRUE,
-  featured BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Accommodation images table
+CREATE TABLE accommodation_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    accommodation_id UUID NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create accommodation_bookings table
-CREATE TABLE accommodation_bookings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id UUID REFERENCES accommodation_listings(id) ON DELETE SET NULL,
-  tenant_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  owner_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  status TEXT CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'completed')) DEFAULT 'pending',
-  move_in_date DATE NOT NULL,
-  move_out_date DATE,
-  monthly_rent NUMERIC NOT NULL,
-  security_deposit NUMERIC,
-  is_deposit_paid BOOLEAN DEFAULT FALSE,
-  special_requests TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Product categories table
+CREATE TABLE product_categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create accommodation_reviews table
-CREATE TABLE accommodation_reviews (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id UUID REFERENCES accommodation_listings(id) ON DELETE CASCADE,
-  reviewer_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  booking_id UUID REFERENCES accommodation_bookings(id) ON DELETE SET NULL,
-  rating INTEGER CHECK (rating >= 1 AND rating <= 5) NOT NULL,
-  review_text TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Products table
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    category_id UUID NOT NULL REFERENCES product_categories(id),
+    condition product_condition NOT NULL,
+    seller_id UUID NOT NULL REFERENCES users(id),
+    status product_status NOT NULL DEFAULT 'pending',
+    featured BOOLEAN NOT NULL DEFAULT FALSE,
+    verified BOOLEAN NOT NULL DEFAULT FALSE,
+    views INTEGER DEFAULT 0,
+    likes INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create product_favorites table
-CREATE TABLE product_favorites (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  UNIQUE(user_id, product_id)
+-- Product images table
+CREATE TABLE product_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create accommodation_favorites table
-CREATE TABLE accommodation_favorites (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  listing_id UUID REFERENCES accommodation_listings(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  UNIQUE(user_id, listing_id)
+-- Reviews table (polymorphic - can be for products or accommodations)
+CREATE TABLE reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    -- Polymorphic relationship fields
+    reviewable_type TEXT NOT NULL CHECK (reviewable_type IN ('product', 'accommodation')),
+    reviewable_id UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Ensure a user can only review an item once
+    UNIQUE (user_id, reviewable_type, reviewable_id)
 );
 
--- Create payment_records table
-CREATE TABLE payment_records (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL NOT NULL,
-  amount NUMERIC NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'USD',
-  payment_type TEXT CHECK (payment_type IN ('order', 'booking', 'deposit', 'refund')) NOT NULL,
-  status TEXT CHECK (status IN ('pending', 'completed', 'failed', 'refunded')) NOT NULL,
-  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
-  booking_id UUID REFERENCES accommodation_bookings(id) ON DELETE SET NULL,
-  payment_method TEXT NOT NULL,
-  payment_details JSONB,
-  transaction_id TEXT,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Messages table for communication between users
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sender_id UUID NOT NULL REFERENCES users(id),
+    recipient_id UUID NOT NULL REFERENCES users(id),
+    content TEXT NOT NULL,
+    read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create notifications table
-CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  type TEXT CHECK (type IN ('message', 'order', 'booking', 'review', 'system', 'payment')) NOT NULL,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  is_read BOOLEAN DEFAULT FALSE,
-  data JSONB,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+-- Saved items table (polymorphic - can be products or accommodations)
+CREATE TABLE saved_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    -- Polymorphic relationship fields
+    saveable_type TEXT NOT NULL CHECK (saveable_type IN ('product', 'accommodation')),
+    saveable_id UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Ensure a user can only save an item once
+    UNIQUE (user_id, saveable_type, saveable_id)
 );
 
--- Create reports table for user reporting issues or other users
-CREATE TABLE reports (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  reporter_id UUID REFERENCES profiles(id) ON DELETE SET NULL NOT NULL,
-  reported_user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  listing_id UUID REFERENCES accommodation_listings(id) ON DELETE SET NULL,
-  report_type TEXT CHECK (report_type IN ('spam', 'inappropriate', 'fraud', 'offensive', 'other')) NOT NULL,
-  description TEXT NOT NULL,
-  status TEXT CHECK (status IN ('pending', 'investigating', 'resolved', 'dismissed')) DEFAULT 'pending',
-  admin_notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
+-- Create indexes for performance
+CREATE INDEX idx_accommodations_location ON accommodations(location_id);
+CREATE INDEX idx_accommodations_type ON accommodations(type_id);
+CREATE INDEX idx_accommodations_owner ON accommodations(owner_id);
+CREATE INDEX idx_accommodations_status ON accommodations(status);
+CREATE INDEX idx_accommodations_featured ON accommodations(featured);
 
--- Create user_settings table for storing user preferences
-CREATE TABLE user_settings (
-  id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
-  notification_preferences JSONB DEFAULT '{"email": true, "push": true, "messages": true, "orders": true, "marketing": false}',
-  theme TEXT DEFAULT 'system',
-  language TEXT DEFAULT 'en',
-  currency TEXT DEFAULT 'USD',
-  privacy_settings JSONB DEFAULT '{"show_email": false, "show_phone": false, "show_activity": true}',
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_products_seller ON products(seller_id);
+CREATE INDEX idx_products_status ON products(status);
+CREATE INDEX idx_products_featured ON products(featured);
 
--- Create seller_ratings table for product seller ratings
-CREATE TABLE seller_ratings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  seller_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  rater_id UUID REFERENCES profiles(id) ON DELETE SET NULL NOT NULL,
-  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
-  rating INTEGER CHECK (rating >= 1 AND rating <= 5) NOT NULL,
-  review_text TEXT,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  UNIQUE(rater_id, order_id)
-);
+CREATE INDEX idx_reviews_user ON reviews(user_id);
+CREATE INDEX idx_reviews_polymorphic ON reviews(reviewable_type, reviewable_id);
 
--- Now that all tables exist, create functions and triggers
+CREATE INDEX idx_messages_sender ON messages(sender_id);
+CREATE INDEX idx_messages_recipient ON messages(recipient_id);
 
--- Create function to handle new user signup
-CREATE OR REPLACE FUNCTION handle_new_user() 
+CREATE INDEX idx_saved_items_user ON saved_items(user_id);
+CREATE INDEX idx_saved_items_polymorphic ON saved_items(saveable_type, saveable_id);
+
+-- Create functions for complex operations
+-- Function to update accommodation rating when a review is added/updated/deleted
+CREATE OR REPLACE FUNCTION update_accommodation_rating()
 RETURNS TRIGGER AS $$
-DECLARE
-  first_name TEXT;
-  last_name TEXT;
-  full_name TEXT;
 BEGIN
-  -- Extract name data from metadata, defaulting to empty string if not present
-  first_name := COALESCE(NEW.raw_user_meta_data->>'first_name', '');
-  last_name := COALESCE(NEW.raw_user_meta_data->>'last_name', '');
-  full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NULLIF(TRIM(first_name || ' ' || last_name), ''));
-  
-  -- Insert the new profile
-  INSERT INTO profiles (
-    id,
-    email,
-    first_name,
-    last_name,
-    full_name,
-    phone,
-    avatar_url,
-    bio,
-    rating,
-    is_verified,
-    is_seller,
-    role,
-    created_at,
-    updated_at
-  ) VALUES (
-    NEW.id,
-    COALESCE(NEW.email, ''),
-    first_name,
-    last_name,
-    full_name,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    FALSE,
-    FALSE,
-    'student',
-    NOW(),
-    NOW()
-  );
-  
-  -- Create default user settings
-  INSERT INTO user_settings (
-    id,
-    notification_preferences,
-    theme,
-    language,
-    currency,
-    privacy_settings,
-    created_at,
-    updated_at
-  ) VALUES (
-    NEW.id,
-    '{"email": true, "push": true, "messages": true, "orders": true, "marketing": false}'::JSONB,
-    'system',
-    'en',
-    'USD',
-    '{"show_email": false, "show_phone": false, "show_activity": true}'::JSONB,
-    NOW(),
-    NOW()
-  );
-  
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    -- Log the error
-    RAISE LOG 'Error in handle_new_user: %', SQLERRM;
-    -- Return NEW to allow the user creation to proceed
+    IF (TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND OLD.reviewable_type = 'accommodation')) THEN
+        UPDATE accommodations
+        SET 
+            rating = (
+                SELECT COALESCE(AVG(rating)::SMALLINT, 0)
+                FROM reviews
+                WHERE reviewable_type = 'accommodation' AND reviewable_id = OLD.reviewable_id
+            ),
+            reviews_count = (
+                SELECT COUNT(*)
+                FROM reviews
+                WHERE reviewable_type = 'accommodation' AND reviewable_id = OLD.reviewable_id
+            )
+        WHERE id = OLD.reviewable_id;
+    END IF;
+    
+    IF (TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND NEW.reviewable_type = 'accommodation')) THEN
+        UPDATE accommodations
+        SET 
+            rating = (
+                SELECT COALESCE(AVG(rating)::SMALLINT, 0)
+                FROM reviews
+                WHERE reviewable_type = 'accommodation' AND reviewable_id = NEW.reviewable_id
+            ),
+            reviews_count = (
+                SELECT COUNT(*)
+                FROM reviews
+                WHERE reviewable_type = 'accommodation' AND reviewable_id = NEW.reviewable_id
+            )
+        WHERE id = NEW.reviewable_id;
+    END IF;
+    
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to ensure only one primary image per product/accommodation
+CREATE OR REPLACE FUNCTION ensure_single_primary_image()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.is_primary THEN
+        -- For product images
+        IF TG_TABLE_NAME = 'product_images' THEN
+            UPDATE product_images
+            SET is_primary = FALSE
+            WHERE product_id = NEW.product_id AND id != NEW.id;
+        -- For accommodation images
+        ELSIF TG_TABLE_NAME = 'accommodation_images' THEN
+            UPDATE accommodation_images
+            SET is_primary = FALSE
+            WHERE accommodation_id = NEW.accommodation_id AND id != NEW.id;
+        END IF;
+    END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
--- Create trigger for new user signup
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
-
--- Create function to handle user deletion
-CREATE OR REPLACE FUNCTION handle_user_delete() 
-RETURNS TRIGGER AS $$
+-- Function to increment product views
+CREATE OR REPLACE FUNCTION increment_product_views(product_id UUID)
+RETURNS VOID AS $$
 BEGIN
-  DELETE FROM profiles WHERE id = OLD.id;
-  RETURN OLD;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create trigger for user deletion
-CREATE TRIGGER on_auth_user_deleted
-  AFTER DELETE ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_user_delete();
-
--- Create function to update profile timestamps
-CREATE OR REPLACE FUNCTION update_profile_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
+    UPDATE products
+    SET views = views + 1
+    WHERE id = product_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for profile updates
-CREATE TRIGGER update_profiles_updated_at
-  BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_profile_updated_at();
-
--- Create function to automatically calculate and update seller ratings
-CREATE OR REPLACE FUNCTION update_seller_rating()
-RETURNS TRIGGER AS $$
+-- Function to toggle product likes
+CREATE OR REPLACE FUNCTION toggle_product_like(product_id UUID, user_id UUID)
+RETURNS BOOLEAN AS $$
 DECLARE
-  avg_rating NUMERIC;
+    liked BOOLEAN;
 BEGIN
-  -- Calculate the average rating for the seller
-  SELECT AVG(rating) INTO avg_rating
-  FROM seller_ratings
-  WHERE seller_id = NEW.seller_id;
-  
-  -- Update the seller's profile with the new average rating
-  UPDATE profiles
-  SET rating = avg_rating
-  WHERE id = NEW.seller_id;
-  
-  RETURN NEW;
+    -- Check if the user has already liked the product
+    SELECT EXISTS (
+        SELECT 1 FROM saved_items
+        WHERE user_id = toggle_product_like.user_id
+        AND saveable_type = 'product'
+        AND saveable_id = toggle_product_like.product_id
+    ) INTO liked;
+    
+    IF liked THEN
+        -- Unlike: Remove from saved_items and decrement likes
+        DELETE FROM saved_items
+        WHERE user_id = toggle_product_like.user_id
+        AND saveable_type = 'product'
+        AND saveable_id = toggle_product_like.product_id;
+        
+        UPDATE products
+        SET likes = likes - 1
+        WHERE id = toggle_product_like.product_id;
+        
+        RETURN FALSE;
+    ELSE
+        -- Like: Add to saved_items and increment likes
+        INSERT INTO saved_items (user_id, saveable_type, saveable_id)
+        VALUES (toggle_product_like.user_id, 'product', toggle_product_like.product_id);
+        
+        UPDATE products
+        SET likes = likes + 1
+        WHERE id = toggle_product_like.product_id;
+        
+        RETURN TRUE;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to update seller rating after a new rating is added or updated
-CREATE TRIGGER update_seller_rating_on_insert
-  AFTER INSERT ON seller_ratings
-  FOR EACH ROW EXECUTE FUNCTION update_seller_rating();
+-- Create triggers
+-- Trigger to update accommodation rating when reviews change
+CREATE TRIGGER update_accommodation_rating_trigger
+AFTER INSERT OR UPDATE OR DELETE ON reviews
+FOR EACH ROW
+EXECUTE FUNCTION update_accommodation_rating();
 
-CREATE TRIGGER update_seller_rating_on_update
-  AFTER UPDATE ON seller_ratings
-  FOR EACH ROW EXECUTE FUNCTION update_seller_rating();
+-- Trigger to ensure only one primary image per product
+CREATE TRIGGER ensure_single_primary_product_image
+BEFORE INSERT OR UPDATE ON product_images
+FOR EACH ROW
+EXECUTE FUNCTION ensure_single_primary_image();
 
--- Set up Row Level Security (RLS)
+-- Trigger to ensure only one primary image per accommodation
+CREATE TRIGGER ensure_single_primary_accommodation_image
+BEFORE INSERT OR UPDATE ON accommodation_images
+FOR EACH ROW
+EXECUTE FUNCTION ensure_single_primary_image();
 
+-- Trigger to update timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_accommodations_updated_at
+BEFORE UPDATE ON accommodations
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_products_updated_at
+BEFORE UPDATE ON products
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_reviews_updated_at
+BEFORE UPDATE ON reviews
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_messages_updated_at
+BEFORE UPDATE ON messages
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+-- Set up Row Level Security (RLS) policies
 -- Enable RLS on all tables
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE universities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accommodation_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE amenities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accommodations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accommodation_amenities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE accommodation_listings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE accommodation_bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE accommodation_reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_favorites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE accommodation_favorites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE payment_records ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_ratings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accommodation_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_items ENABLE ROW LEVEL SECURITY;
 
--- Profiles policies
-CREATE POLICY "Public profiles are viewable by everyone"
-  ON profiles FOR SELECT
-  USING (true);
+-- Users policies
+CREATE POLICY "Users can view all active users"
+ON users FOR SELECT
+USING (status = 'active');
 
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE
-  USING (auth.uid() = id);
+CREATE POLICY "Users can update their own profile"
+ON users FOR UPDATE
+USING (auth.uid() = id);
 
--- Products policies
-CREATE POLICY "Products are viewable by everyone"
-  ON products FOR SELECT
-  USING (true);
-
-CREATE POLICY "Users can insert their own products"
-  ON products FOR INSERT
-  WITH CHECK (auth.uid() = seller_id);
-
-CREATE POLICY "Users can update their own products"
-  ON products FOR UPDATE
-  USING (auth.uid() = seller_id);
-
-CREATE POLICY "Users can delete their own products"
-  ON products FOR DELETE
-  USING (auth.uid() = seller_id);
-
--- Orders policies
-CREATE POLICY "Users can view orders they are involved in"
-  ON orders FOR SELECT
-  USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
-
-CREATE POLICY "Users can create orders"
-  ON orders FOR INSERT
-  WITH CHECK (auth.uid() = buyer_id);
-
-CREATE POLICY "Users can update orders they are involved in"
-  ON orders FOR UPDATE
-  USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
-
--- Conversations policies
-CREATE POLICY "Users can view conversations they are involved in"
-  ON conversations FOR SELECT
-  USING (auth.uid() = ANY(participants));
-
-CREATE POLICY "Users can create conversations they are involved in"
-  ON conversations FOR INSERT
-  WITH CHECK (auth.uid() = ANY(participants));
-
--- Messages policies
-CREATE POLICY "Users can view messages in their conversations"
-  ON messages FOR SELECT
-  USING (
+CREATE POLICY "Admins can do everything with users"
+ON users FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = messages.conversation_id
-      AND auth.uid() = ANY(participants)
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
     )
-  );
+);
 
-CREATE POLICY "Users can insert messages in their conversations"
-  ON messages FOR INSERT
-  WITH CHECK (
-    auth.uid() = sender_id AND
+-- Universities policies
+CREATE POLICY "Universities are viewable by everyone"
+ON universities FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "Only admins can modify universities"
+ON universities FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = messages.conversation_id
-      AND auth.uid() = ANY(participants)
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
     )
-  );
+);
 
-CREATE POLICY "Users can update read status of their messages"
-  ON messages FOR UPDATE
-  USING (
+-- Locations policies
+CREATE POLICY "Locations are viewable by everyone"
+ON locations FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "Only admins can modify locations"
+ON locations FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM conversations
-      WHERE conversations.id = messages.conversation_id
-      AND auth.uid() = ANY(participants)
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
     )
-  );
-
--- Categories policies
-CREATE POLICY "Categories are viewable by everyone"
-  ON categories FOR SELECT
-  USING (true);
-
-CREATE POLICY "Only admins can modify categories"
-  ON categories FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
-
--- Banners policies
-CREATE POLICY "Banners are viewable by everyone"
-  ON banners FOR SELECT
-  USING (true);
-
-CREATE POLICY "Only admins can modify banners"
-  ON banners FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
+);
 
 -- Accommodation types policies
 CREATE POLICY "Accommodation types are viewable by everyone"
-  ON accommodation_types FOR SELECT
-  USING (true);
+ON accommodation_types FOR SELECT
+TO authenticated
+USING (true);
 
 CREATE POLICY "Only admins can modify accommodation types"
-  ON accommodation_types FOR ALL
-  USING (
+ON accommodation_types FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
     )
-  );
+);
+
+-- Amenities policies
+CREATE POLICY "Amenities are viewable by everyone"
+ON amenities FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "Only admins can modify amenities"
+ON amenities FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    )
+);
+
+-- Accommodations policies
+CREATE POLICY "Accommodations are viewable by everyone if available or occupied"
+ON accommodations FOR SELECT
+TO authenticated
+USING (status IN ('available', 'occupied') OR owner_id = auth.uid());
+
+CREATE POLICY "Users can create their own accommodations"
+ON accommodations FOR INSERT
+TO authenticated
+WITH CHECK (owner_id = auth.uid());
+
+CREATE POLICY "Users can update their own accommodations"
+ON accommodations FOR UPDATE
+USING (owner_id = auth.uid());
+
+CREATE POLICY "Users can delete their own accommodations"
+ON accommodations FOR DELETE
+USING (owner_id = auth.uid());
+
+CREATE POLICY "Admins can do everything with accommodations"
+ON accommodations FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    )
+);
 
 -- Accommodation amenities policies
 CREATE POLICY "Accommodation amenities are viewable by everyone"
-  ON accommodation_amenities FOR SELECT
-  USING (true);
+ON accommodation_amenities FOR SELECT
+TO authenticated
+USING (true);
 
-CREATE POLICY "Only admins can modify accommodation amenities"
-  ON accommodation_amenities FOR ALL
-  USING (
+CREATE POLICY "Users can manage amenities for their own accommodations"
+ON accommodation_amenities FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+        SELECT 1 FROM accommodations
+        WHERE id = accommodation_id AND owner_id = auth.uid()
     )
-  );
+);
 
--- Accommodation listings policies
-CREATE POLICY "Accommodation listings are viewable by everyone"
-  ON accommodation_listings FOR SELECT
-  USING (true);
-
-CREATE POLICY "Users can insert their own accommodation listings"
-  ON accommodation_listings FOR INSERT
-  WITH CHECK (auth.uid() = owner_id);
-
-CREATE POLICY "Users can update their own accommodation listings"
-  ON accommodation_listings FOR UPDATE
-  USING (auth.uid() = owner_id);
-
-CREATE POLICY "Users can delete their own accommodation listings"
-  ON accommodation_listings FOR DELETE
-  USING (auth.uid() = owner_id);
-
--- Accommodation bookings policies
-CREATE POLICY "Users can view bookings they are involved in"
-  ON accommodation_bookings FOR SELECT
-  USING (auth.uid() = tenant_id OR auth.uid() = owner_id);
-
-CREATE POLICY "Users can create bookings"
-  ON accommodation_bookings FOR INSERT
-  WITH CHECK (auth.uid() = tenant_id);
-
-CREATE POLICY "Users can update bookings they are involved in"
-  ON accommodation_bookings FOR UPDATE
-  USING (auth.uid() = tenant_id OR auth.uid() = owner_id);
-
--- Accommodation reviews policies
-CREATE POLICY "Accommodation reviews are viewable by everyone"
-  ON accommodation_reviews FOR SELECT
-  USING (true);
-
-CREATE POLICY "Users can insert their own accommodation reviews"
-  ON accommodation_reviews FOR INSERT
-  WITH CHECK (auth.uid() = reviewer_id);
-
-CREATE POLICY "Users can update their own accommodation reviews"
-  ON accommodation_reviews FOR UPDATE
-  USING (auth.uid() = reviewer_id);
-
-CREATE POLICY "Users can delete their own accommodation reviews"
-  ON accommodation_reviews FOR DELETE
-  USING (auth.uid() = reviewer_id);
-
--- Product favorites policies
-CREATE POLICY "Users can view their own product favorites"
-  ON product_favorites FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can add product favorites"
-  ON product_favorites FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own product favorites"
-  ON product_favorites FOR DELETE
-  USING (auth.uid() = user_id);
-
--- Accommodation favorites policies
-CREATE POLICY "Users can view their own accommodation favorites"
-  ON accommodation_favorites FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can add accommodation favorites"
-  ON accommodation_favorites FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own accommodation favorites"
-  ON accommodation_favorites FOR DELETE
-  USING (auth.uid() = user_id);
-
--- Payment records policies
-CREATE POLICY "Users can view their own payment records"
-  ON payment_records FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Only system can insert payment records"
-  ON payment_records FOR INSERT
-  WITH CHECK (
+CREATE POLICY "Admins can do everything with accommodation amenities"
+ON accommodation_amenities FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
     )
-  );
+);
 
--- Notifications policies
-CREATE POLICY "Users can view their own notifications"
-  ON notifications FOR SELECT
-  USING (auth.uid() = user_id);
+-- Accommodation images policies
+CREATE POLICY "Accommodation images are viewable by everyone"
+ON accommodation_images FOR SELECT
+TO authenticated
+USING (true);
 
-CREATE POLICY "Users can update their own notifications"
-  ON notifications FOR UPDATE
-  USING (auth.uid() = user_id);
-
--- Reports policies
-CREATE POLICY "Users can view reports they created"
-  ON reports FOR SELECT
-  USING (auth.uid() = reporter_id);
-
-CREATE POLICY "Admins can view all reports"
-  ON reports FOR SELECT
-  USING (
+CREATE POLICY "Users can manage images for their own accommodations"
+ON accommodation_images FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+        SELECT 1 FROM accommodations
+        WHERE id = accommodation_id AND owner_id = auth.uid()
     )
-  );
+);
 
-CREATE POLICY "Users can create reports"
-  ON reports FOR INSERT
-  WITH CHECK (auth.uid() = reporter_id);
-
-CREATE POLICY "Only admins can update reports"
-  ON reports FOR UPDATE
-  USING (
+CREATE POLICY "Admins can do everything with accommodation images"
+ON accommodation_images FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
     )
-  );
+);
 
--- User settings policies
-CREATE POLICY "Users can view their own settings"
-  ON user_settings FOR SELECT
-  USING (auth.uid() = id);
+-- Product categories policies
+CREATE POLICY "Product categories are viewable by everyone"
+ON product_categories FOR SELECT
+TO authenticated
+USING (true);
 
-CREATE POLICY "Users can update their own settings"
-  ON user_settings FOR UPDATE
-  USING (auth.uid() = id);
-
--- Seller ratings policies
-CREATE POLICY "Seller ratings are viewable by everyone"
-  ON seller_ratings FOR SELECT
-  USING (true);
-
-CREATE POLICY "Users can create ratings for sellers they bought from"
-  ON seller_ratings FOR INSERT
-  WITH CHECK (
-    auth.uid() = rater_id AND
+CREATE POLICY "Only admins can modify product categories"
+ON product_categories FOR ALL
+USING (
     EXISTS (
-      SELECT 1 FROM orders
-      WHERE orders.id = seller_ratings.order_id
-      AND orders.buyer_id = auth.uid()
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
     )
-  );
+);
 
-CREATE POLICY "Users can update their own ratings"
-  ON seller_ratings FOR UPDATE
-  USING (auth.uid() = rater_id);
+-- Products policies
+CREATE POLICY "Products are viewable by everyone if active or sold"
+ON products FOR SELECT
+TO authenticated
+USING (status IN ('active', 'sold') OR seller_id = auth.uid());
 
--- Insert sample data AFTER all tables, functions, and policies are created
+CREATE POLICY "Users can create their own products"
+ON products FOR INSERT
+TO authenticated
+WITH CHECK (seller_id = auth.uid());
 
--- Insert sample categories
-INSERT INTO categories (name, icon) VALUES
-  -- Academic Materials
-  ('Textbooks', 'book'),
-  ('Course Notes', 'file-text'),
-  ('Stationery', 'edit'),
-  ('Lab Equipment', 'tool'),
-  ('Calculators', 'calculator'),
-  ('Academic Services', 'briefcase'),
-  
-  -- Electronics
-  ('Computers & Laptops', 'laptop'),
-  ('Phones & Tablets', 'smartphone'),
-  ('Computer Accessories', 'hard-drive'),
-  ('Audio Equipment', 'headphones'),
-  ('Cameras', 'camera'),
-  ('TV & Video', 'tv'),
-  ('Appliances', 'monitor'),
-  
-  -- Home & Living
-  ('Furniture', 'chair'),
-  ('Kitchen Items', 'coffee'),
-  ('Bedding & Linen', 'layers'),
-  ('Decor', 'image'),
-  ('Storage', 'archive'),
-  ('Housekeeping', 'home'),
-  
-  -- Clothing & Fashion
-  ('Men''s Clothing', 'user'),
-  ('Women''s Clothing', 'user-plus'),
-  ('Shoes', 'boot'),
-  ('Bags & Backpacks', 'shopping-bag'),
-  ('Accessories', 'watch'),
-  ('Jewelry', 'gem'),
-  ('School Uniforms', 'scissors'),
-  
-  -- Transport
-  ('Bicycles', 'bike'),
-  ('Cars', 'car'),
-  ('Ride Sharing', 'users'),
-  ('Transport Services', 'truck'),
-  ('Vehicle Parts', 'settings'),
-  
-  -- Sports & Leisure
-  ('Sports Equipment', 'activity'),
-  ('Exercise & Fitness', 'trending-up'),
-  ('Team Sports', 'users'),
-  ('Outdoor Activities', 'compass'),
-  ('Board & Card Games', 'grid'),
-  ('Musical Instruments', 'music'),
-  
-  -- Food & Nutrition
-  ('Meal Prep & Delivery', 'package'),
-  ('Cooking Ingredients', 'shopping-cart'),
-  ('Snacks', 'coffee'),
-  ('Meal Vouchers', 'credit-card'),
-  ('Catering Services', 'utensils'),
-  
-  -- Services
-  ('Tutoring', 'book-open'),
-  ('Computer Repair', 'tool'),
-  ('Cleaning', 'trash'),
-  ('Beauty & Grooming', 'scissors'),
-  ('Event Planning', 'calendar'),
-  ('Photography', 'camera'),
-  ('Graphic Design', 'pen-tool'),
-  ('Translation', 'globe'),
-  
-  -- Campus Jobs
-  ('Part-time Jobs', 'clock'),
-  ('Internships', 'briefcase'),
-  ('Research Assistants', 'search'),
-  ('Campus Ambassador', 'user-check'),
-  ('Tutoring Jobs', 'edit-3'),
-  
-  -- Event Tickets
-  ('Campus Events', 'calendar'),
-  ('Sports Events', 'flag'),
-  ('Concerts', 'music'),
-  ('Workshops', 'users'),
-  ('Graduation', 'award'),
-  
-  -- Zimbabwe-Specific
-  ('Booster Packages', 'box'),
-  ('Combi Services', 'truck'),
-  ('Tuck Shop Items', 'shopping-bag'),
-  ('Sadza Power', 'battery-charging'),
-  ('Bulk Groceries', 'package'),
-  ('Hostel Essentials', 'home'),
-  
-  -- Miscellaneous
-  ('Lost & Found', 'help-circle'),
-  ('Free Items', 'gift'),
-  ('Swap & Exchange', 'repeat'),
-  ('Others', 'more-horizontal');
+CREATE POLICY "Users can update their own products"
+ON products FOR UPDATE
+USING (seller_id = auth.uid());
 
--- Insert sample accommodation types
-INSERT INTO accommodation_types (name, description, icon) VALUES
-  ('Apartment', 'Fully furnished apartment with separate bedroom', 'apartment'),
-  ('Studio', 'Open-plan living space with combined bedroom and living area', 'studio'),
-  ('Room in shared house', 'Private room with shared common areas', 'bed'),
-  ('Entire house', 'Complete house for rent', 'home'),
-  ('Dormitory', 'Student dormitory room', 'door-open'),
-  -- Zimbabwe-specific accommodation types
-  ('Single Room', 'Private room for one person with no sharing', 'user'),
-  ('2-Sharing Room', 'Room shared between two students with two beds', 'users'),
-  ('3-Sharing Room', 'Room shared between three students with three beds', 'users'),
-  ('4-Sharing Room', 'Room shared between four students with four beds', 'users'),
-  ('Cottage', 'Small separate house within a larger property', 'home'),
-  ('Bedsitter', 'Combined bedroom and sitting room with small kitchenette', 'coffee'),
-  ('Boarding House', 'Traditional Zimbabwe boarding house with caretaker', 'home-heart'),
-  ('Campus Hostel', 'Official university hostel on campus grounds', 'building'),
-  ('Off-Campus Hostel', 'Private hostel near university with multiple sharing options', 'building-community'),
-  ('Servant Quarter', 'Converted small housing unit often behind main houses', 'door');
+CREATE POLICY "Users can delete their own products"
+ON products FOR DELETE
+USING (seller_id = auth.uid());
 
--- Insert sample accommodation amenities
-INSERT INTO accommodation_amenities (name, icon, category) VALUES
-  ('Wi-Fi', 'wifi', 'essential'),
-  ('Kitchen', 'kitchen', 'essential'),
-  ('Washing machine', 'wash', 'essential'),
-  ('Heating', 'thermometer', 'essential'),
-  ('Air conditioning', 'wind', 'feature'),
-  ('TV', 'tv', 'feature'),
-  ('Free parking', 'car', 'feature'),
-  ('Gym', 'dumbbell', 'feature'),
-  ('Pool', 'droplet', 'feature'),
-  ('Fire extinguisher', 'fire-extinguisher', 'safety'),
-  ('Smoke alarm', 'alert-triangle', 'safety'),
-  ('First aid kit', 'plus', 'safety'),
-  ('Near campus', 'map-pin', 'location'),
-  ('Near public transport', 'bus', 'location'),
-  ('Near shops', 'shopping-bag', 'location');
+CREATE POLICY "Admins can do everything with products"
+ON products FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    )
+);
+
+-- Product images policies
+CREATE POLICY "Product images are viewable by everyone"
+ON product_images FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "Users can manage images for their own products"
+ON product_images FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM products
+        WHERE id = product_id AND seller_id = auth.uid()
+    )
+);
+
+CREATE POLICY "Admins can do everything with product images"
+ON product_images FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    )
+);
+
+-- Reviews policies
+CREATE POLICY "Reviews are viewable by everyone"
+ON reviews FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "Users can create their own reviews"
+ON reviews FOR INSERT
+TO authenticated
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own reviews"
+ON reviews FOR UPDATE
+USING (user_id = auth.uid());
+
+CREATE POLICY "Users can delete their own reviews"
+ON reviews FOR DELETE
+USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can do everything with reviews"
+ON reviews FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    )
+);
+
+-- Messages policies
+CREATE POLICY "Users can view messages they sent or received"
+ON messages FOR SELECT
+TO authenticated
+USING (sender_id = auth.uid() OR recipient_id = auth.uid());
+
+CREATE POLICY "Users can send messages"
+ON messages FOR INSERT
+TO authenticated
+WITH CHECK (sender_id = auth.uid());
+
+CREATE POLICY "Users can update messages they sent"
+ON messages FOR UPDATE
+USING (sender_id = auth.uid());
+
+CREATE POLICY "Users can delete messages they sent or received"
+ON messages FOR DELETE
+USING (sender_id = auth.uid() OR recipient_id = auth.uid());
+
+CREATE POLICY "Admins can do everything with messages"
+ON messages FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    )
+);
+
+-- Saved items policies
+CREATE POLICY "Users can view their own saved items"
+ON saved_items FOR SELECT
+TO authenticated
+USING (user_id = auth.uid());
+
+CREATE POLICY "Users can save items"
+ON saved_items FOR INSERT
+TO authenticated
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can delete their own saved items"
+ON saved_items FOR DELETE
+USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can do everything with saved items"
+ON saved_items FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM users
+        WHERE id = auth.uid() AND role = 'admin'
+    )
+);
+
+-- Insert initial data
+-- Insert universities
+INSERT INTO universities (name, location) VALUES
+('University of Zimbabwe', 'Harare'),
+('National University of Science and Technology', 'Bulawayo'),
+('Midlands State University', 'Gweru'),
+('Harare Institute of Technology', 'Harare'),
+('Chinhoyi University of Technology', 'Chinhoyi');
+
+-- Insert locations
+INSERT INTO locations (name, city) VALUES
+('Mount Pleasant', 'Harare'),
+('Avondale', 'Harare'),
+('Bulawayo CBD', 'Bulawayo'),
+('Senga', 'Gweru'),
+('Mkoba', 'Gweru'),
+('Hillside', 'Bulawayo'),
+('Avenues', 'Harare'),
+('Eastlea', 'Harare');
+
+-- Insert accommodation types
+INSERT INTO accommodation_types (name, description) VALUES
+('Single Room', 'A room for one person'),
+('Shared Room', 'A room shared by multiple people'),
+('Studio Apartment', 'A self-contained small apartment'),
+('1-Bedroom Apartment', 'An apartment with one bedroom'),
+('2-Bedroom Apartment', 'An apartment with two bedrooms'),
+('House', 'A full house');
+
+-- Insert amenities
+INSERT INTO amenities (name, icon) VALUES
+('Wi-Fi', 'wifi'),
+('Water', 'droplet'),
+('Electricity', 'zap'),
+('Security', 'shield'),
+('Furnished', 'sofa'),
+('Parking', 'car'),
+('Laundry', 'shirt'),
+('Kitchen', 'utensils');
+
+-- Insert product categories
+INSERT INTO product_categories (name, description) VALUES
+('Textbooks', 'Academic textbooks and study materials'),
+('Electronics', 'Electronic devices and accessories'),
+('Furniture', 'Furniture for home or dorm'),
+('Clothing', 'Clothing items and accessories'),
+('Stationery', 'Stationery and office supplies'),
+('Kitchen Appliances', 'Appliances for kitchen use'),
+('Sports Equipment', 'Equipment for sports and fitness'),
+('Other', 'Miscellaneous items');
+
+-- Create storage buckets for images
+INSERT INTO storage.buckets (id, name, public) VALUES 
+('profile-images', 'Profile Images', true),
+('accommodation-images', 'Accommodation Images', true),
+('product-images', 'Product Images', true);
+
+-- Set up storage policies
+CREATE POLICY "Public profiles are viewable by everyone" 
+ON storage.objects FOR SELECT
+USING (bucket_id = 'profile-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Users can upload their own profile image" 
+ON storage.objects FOR INSERT 
+TO authenticated
+WITH CHECK (bucket_id = 'profile-images' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Users can update their own profile image" 
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (bucket_id = 'profile-images' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "Accommodation images are viewable by everyone" 
+ON storage.objects FOR SELECT
+USING (bucket_id = 'accommodation-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Users can upload images to their own accommodations" 
+ON storage.objects FOR INSERT 
+TO authenticated
+WITH CHECK (
+  bucket_id = 'accommodation-images' AND 
+  EXISTS (
+    SELECT 1 FROM accommodations
+    WHERE id::text = (storage.foldername(name))[1] AND owner_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Product images are viewable by everyone" 
+ON storage.objects FOR SELECT
+USING (bucket_id = 'product-images' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Users can upload images to their own products" 
+ON storage.objects FOR INSERT 
+TO authenticated
+WITH CHECK (
+  bucket_id = 'product-images' AND 
+  EXISTS (
+    SELECT 1 FROM products
+    WHERE id::text = (storage.foldername(name))[1] AND seller_id = auth.uid()
+  )
+);

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, View as RNView } from "react-native"
+import { StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, View as RNView, Alert } from "react-native"
 import { Text, View } from "@/components/themed"
 import { useSession } from "@/providers/session-provider"
 import { useColorScheme } from "@/hooks/use-color-scheme"
@@ -10,20 +10,29 @@ import { Stack, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
-import { Favorite } from "@/types"
+import React from "react"
 
-type FavoriteTab = "listings" | "accommodations"
+type FavoriteItem = {
+  id: string
+  listing: {
+    id: string | number
+    title: string
+    price: number
+    images: string[]
+    is_sold: boolean
+    created_at: string
+  }
+}
 
 export default function FavoritesScreen() {
   const { session } = useSession()
   const colorScheme = useColorScheme()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<FavoriteTab>("listings")
 
   const { data: favorites, isLoading } = useQuery({
-    queryKey: ["favorites", activeTab],
-    queryFn: () => getFavorites(activeTab),
+    queryKey: ["favorites"],
+    queryFn: getFavorites,
     enabled: !!session,
   })
 
@@ -34,52 +43,49 @@ export default function FavoritesScreen() {
     },
   })
 
-  async function getFavorites(type: FavoriteTab): Promise<Favorite[]> {
+  async function getFavorites(): Promise<FavoriteItem[]> {
     try {
-      if (type === "listings") {
-        const { data, error } = await supabase
-          .from("product_favorites")
-          .select(`
+      if (!session) return []
+      
+      const { data, error } = await supabase
+        .from("favorites")
+        .select(`
+          id,
+          listing:listing_id (
             id,
-            user_id,
-            product_id,
-            created_at,
-            listing:product_id(id, title, price, images)
-          `)
-          .eq("user_id", session.user.id)
-          .order("created_at", { ascending: false })
-
-        if (error) throw error
-        return data as unknown as Favorite[]
-      } else {
-        const { data, error } = await supabase
-          .from("accommodation_favorites")
-          .select(`
-            id,
-            user_id,
-            listing_id,
-            created_at,
-            accommodation:listing_id(id, title, rent, images)
-          `)
-          .eq("user_id", session.user.id)
-          .order("created_at", { ascending: false })
-
-        if (error) throw error
-        return data as unknown as Favorite[]
-      }
+            title,
+            price,
+            images,
+            is_sold,
+            created_at
+          )
+        `)
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+      
+      if (error) throw error
+      // Transform data to match the FavoriteItem type
+      return data
+        .filter((item: any) => item && item.id) // Filter out null/undefined items
+        .map((item: any) => ({
+          id: item.id,
+          // Handle array listings and null cases
+          listing: Array.isArray(item.listing) && item.listing.length > 0 
+            ? item.listing[0] 
+            : (item.listing || null)
+        })) as FavoriteItem[]
     } catch (error) {
-      console.error(`Error fetching ${type} favorites:`, error)
+      console.error("Error fetching favorites:", error)
       return []
     }
   }
 
-  async function removeFavorite(item: { id: string | number, type: FavoriteTab }) {
+  async function removeFavorite(favoriteId: string): Promise<boolean> {
     try {
-      const table = item.type === "listings" ? "product_favorites" : "accommodation_favorites"
       const { error } = await supabase
-        .from(table)
+        .from("favorites")
         .delete()
-        .eq("id", item.id)
+        .eq("id", favoriteId)
 
       if (error) throw error
       return true
@@ -89,42 +95,67 @@ export default function FavoritesScreen() {
     }
   }
 
-  function renderItem({ item }: { item: Favorite }) {
-    const itemData = activeTab === "listings" ? item.listing : item.accommodation
-    if (!itemData) return null
+  function handleRemoveFavorite(id: string) {
+    Alert.alert(
+      "Remove from Favorites",
+      "Are you sure you want to remove this item from your favorites?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Remove", 
+          style: "destructive",
+          onPress: () => removeFavoriteMutation.mutate(id)
+        }
+      ]
+    )
+  }
 
-    const imageUrl = itemData.images && itemData.images.length > 0 
-      ? itemData.images[0] 
-      : "https://via.placeholder.com/100"
+  function renderItem({ item }: { item: FavoriteItem }) {
+    const listing = item.listing
+    // Handle null listings and provide default values
+    if (!listing) {
+      return (
+        <RNView style={styles.itemContainer}>
+          <View style={[styles.item, {justifyContent: "center", alignItems: "center"}]}>
+            <Text>Item no longer available</Text>
+          </View>
+        </RNView>
+      )
+    }
     
-    const price = activeTab === "listings" 
-      ? `$${itemData.price}` 
-      : `$${itemData.rent}/mo`
+    const imageUrl = listing.images && listing.images.length > 0 
+      ? listing.images[0] 
+      : "https://via.placeholder.com/100"
 
     return (
       <RNView style={styles.itemContainer}>
         <TouchableOpacity 
           style={styles.item}
-          onPress={() => {
-            if (activeTab === "listings") {
-              router.push(`/marketplace/listing/${itemData.id}`)
-            } else {
-              router.push(`/accommodation/${itemData.id}`)
-            }
-          }}
+          onPress={() => router.push(`/listings/${listing.id}`)}
         >
           <Image source={{ uri: imageUrl }} style={styles.itemImage} />
           <View style={styles.itemDetails}>
-            <Text style={styles.itemTitle} numberOfLines={2}>{itemData.title}</Text>
-            <Text style={styles.itemPrice}>{price}</Text>
+            <Text style={styles.itemTitle} numberOfLines={2}>{listing.title}</Text>
+            <Text style={styles.itemPrice}>${listing.price}</Text>
+            {listing.is_sold && <Text style={styles.soldBadge}>Sold</Text>}
           </View>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.removeButton}
-          onPress={() => removeFavoriteMutation.mutate({ id: item.id, type: activeTab })}
-        >
-          <Ionicons name="heart-dislike" size={18} color="#ef4444" />
-        </TouchableOpacity>
+        
+        <RNView style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => router.push(`/listings/${listing.id}`)}
+          >
+            <Ionicons name="eye" size={18} color="#0891b2" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => handleRemoveFavorite(item.id)}
+          >
+            <Ionicons name="heart-dislike" size={18} color="#ef4444" />
+          </TouchableOpacity>
+        </RNView>
       </RNView>
     )
   }
@@ -132,39 +163,24 @@ export default function FavoritesScreen() {
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="heart" size={60} color="#e0e0e0" />
-      <Text style={styles.emptyText}>No saved {activeTab}</Text>
+      <Text style={styles.emptyText}>No favorites yet</Text>
       <Text style={styles.emptySubtext}>
-        Items you save will appear here. Tap the heart icon on any listing to save it for later.
+        Items you save will appear here
       </Text>
       <TouchableOpacity 
         style={styles.browseButton}
-        onPress={() => {
-          if (activeTab === "listings") {
-            router.push("/marketplace")
-          } else {
-            router.push("/accommodation")
-          }
-        }}
+        onPress={() => router.push("/listings")}
       >
-        <Text style={styles.browseButtonText}>Browse {activeTab === "listings" ? "Marketplace" : "Accommodations"}</Text>
+        <Text style={styles.browseButtonText}>Browse Listings</Text>
       </TouchableOpacity>
     </View>
-  )
-
-  const Tab = ({ type, label }: { type: FavoriteTab; label: string }) => (
-    <TouchableOpacity
-      style={[styles.tab, activeTab === type && styles.activeTab]}
-      onPress={() => setActiveTab(type)}
-    >
-      <Text style={[styles.tabText, activeTab === type && styles.activeTabText]}>{label}</Text>
-    </TouchableOpacity>
   )
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: "Saved Items",
+          title: "My Favorites",
           headerShown: true,
           headerShadowVisible: false,
           headerTitleStyle: styles.headerTitle,
@@ -176,18 +192,13 @@ export default function FavoritesScreen() {
         }}
       />
       <View style={styles.container}>
-        <RNView style={styles.tabs}>
-          <Tab type="listings" label="Marketplace" />
-          <Tab type="accommodations" label="Housing" />
-        </RNView>
-
         {isLoading ? (
           <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} style={styles.loader} />
         ) : (
           <FlatList
             data={favorites}
             renderItem={renderItem}
-            keyExtractor={(item) => `${activeTab}-${item.id}`}
+            keyExtractor={(item) => `${item.id}`}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={renderEmptyList}
             style={styles.list}
@@ -210,30 +221,6 @@ const styles = StyleSheet.create({
   backButton: {
     marginLeft: 16,
   },
-  tabs: {
-    flexDirection: "row",
-    marginBottom: 8,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "#e0e0e0",
-  },
-  activeTab: {
-    borderBottomColor: Colors.light.tint,
-  },
-  tabText: {
-    fontWeight: "500",
-    color: "#666",
-  },
-  activeTabText: {
-    color: Colors.light.tint,
-    fontWeight: "bold",
-  },
   listContent: {
     padding: 16,
     paddingTop: 8,
@@ -248,8 +235,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   itemContainer: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "white",
     marginBottom: 12,
     borderRadius: 12,
@@ -262,7 +247,6 @@ const styles = StyleSheet.create({
   },
   item: {
     flexDirection: "row",
-    flex: 1,
     padding: 12,
   },
   itemImage: {
@@ -285,8 +269,30 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Colors.light.tint,
   },
-  removeButton: {
-    padding: 16,
+  soldBadge: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    backgroundColor: "#10b981",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  actionButtons: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRightWidth: 1,
+    borderRightColor: "#f0f0f0",
   },
   emptyContainer: {
     flex: 1,

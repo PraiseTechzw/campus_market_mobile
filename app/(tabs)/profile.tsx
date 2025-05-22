@@ -211,30 +211,30 @@ export default function ProfileScreen() {
       
       <View style={styles.profileContainer}>
         <View style={styles.avatarSection}>
-          <TouchableOpacity style={styles.avatarContainer} onPress={pickImage} disabled={uploading}>
-            {uploading ? (
+        <TouchableOpacity style={styles.avatarContainer} onPress={pickImage} disabled={uploading}>
+          {uploading ? (
               <View style={styles.avatar}>
                 <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} />
               </View>
-            ) : profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+          ) : profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
                 <Text style={styles.avatarPlaceholderText}>
                   {profile?.first_name?.charAt(0)}{profile?.last_name?.charAt(0)}
                 </Text>
-              </View>
-            )}
-            <View style={styles.cameraIcon}>
-              <Ionicons name="camera" size={16} color="#fff" />
             </View>
-          </TouchableOpacity>
-          
+          )}
+          <View style={styles.cameraIcon}>
+            <Ionicons name="camera" size={16} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
           <View style={styles.nameContainer}>
-            <Text style={styles.name}>
-              {profile?.first_name} {profile?.last_name}
-            </Text>
-            <Text style={styles.email}>{session.user.email}</Text>
+        <Text style={styles.name}>
+          {profile?.first_name} {profile?.last_name}
+        </Text>
+        <Text style={styles.email}>{session.user.email}</Text>
             {renderVerificationStatus()}
           </View>
         </View>
@@ -260,20 +260,20 @@ export default function ProfileScreen() {
             <Text style={styles.statValue}>0</Text>
             <Text style={styles.statLabel}>Sales</Text>
           </View>
-        </View>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/edit")}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/edit")}>
             <Ionicons name="person" size={20} color={Colors[colorScheme ?? "light"].tint} />
-            <Text style={styles.menuItemText}>Edit Profile</Text>
+          <Text style={styles.menuItemText}>Edit Profile</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
+        </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/listings")}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/listings")}>
             <Ionicons name="list" size={20} color={Colors[colorScheme ?? "light"].tint} />
-            <Text style={styles.menuItemText}>My Listings</Text>
+          <Text style={styles.menuItemText}>My Listings</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
@@ -287,17 +287,17 @@ export default function ProfileScreen() {
             <Ionicons name="heart" size={20} color={Colors[colorScheme ?? "light"].tint} />
             <Text style={styles.menuItemText}>Saved Items</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
+        </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/notifications")}>
             <Ionicons name="notifications" size={20} color={Colors[colorScheme ?? "light"].tint} />
             <Text style={styles.menuItemText}>Notifications</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Preferences</Text>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/profile/interests")}>
             <MaterialIcons name="interests" size={20} color={Colors[colorScheme ?? "light"].tint} />
@@ -338,12 +338,12 @@ export default function ProfileScreen() {
             <Text style={styles.menuItemText}>Settings</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
-        </View>
+      </View>
 
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out" size={20} color="#fff" />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Ionicons name="log-out" size={20} color="#fff" />
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
       </View>
     </ScrollView>
   )

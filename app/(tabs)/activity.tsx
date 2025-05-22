@@ -79,7 +79,7 @@ export default function ActivityScreen() {
     }
 
     if (activeTab === "activity") {
-      return (
+  return (
         <FlatList
           data={data}
           renderItem={({ item }) => <ActivityFeedItemCard item={item} />}

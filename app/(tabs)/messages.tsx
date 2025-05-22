@@ -180,7 +180,7 @@ export default function MessagesScreen() {
           <View style={styles.headerButtons}>
             {cleaning && <ActivityIndicator size="small" color={Colors[colorScheme ?? "light"].tint} style={styles.cleanupLoader} />}
             <TouchableOpacity onPress={handleCleanup} disabled={cleaning || isLoading} style={styles.headerButton}>
-              <Ionicons name="cleaning-services" size={20} color={Colors[colorScheme ?? "light"].text} />
+              <Ionicons name="trash-outline" size={20} color={Colors[colorScheme ?? "light"].text} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push("/messages/new")} style={styles.headerButton}>
               <Ionicons name="add" size={24} color={Colors[colorScheme ?? "light"].text} />

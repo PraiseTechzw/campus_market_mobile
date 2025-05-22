@@ -65,7 +65,7 @@ export default function VerifyStudentScreen() {
   const takePhoto = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync()
-      
+
       if (status !== "granted") {
         Alert.alert(
           "Camera Permission Required",
@@ -147,26 +147,26 @@ export default function VerifyStudentScreen() {
             headerTitleStyle: styles.headerTitle,
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
-              </TouchableOpacity>
+            <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
+          </TouchableOpacity>
             ),
           }}
         />
-        <View style={styles.container}>
+      <View style={styles.container}>
           <View style={styles.verifiedContainer}>
             <Ionicons name="checkmark-circle" size={80} color="#10b981" />
             <Text style={styles.verifiedTitle}>Verified Student</Text>
             <Text style={styles.verifiedMessage}>
               Your account has been verified as a student. Enjoy access to all features of Campus Market!
-            </Text>
+          </Text>
             <TouchableOpacity
               style={styles.backToProfileButton}
               onPress={() => router.back()}
             >
-              <Text style={styles.backToProfileText}>Back to Profile</Text>
-            </TouchableOpacity>
-          </View>
+            <Text style={styles.backToProfileText}>Back to Profile</Text>
+          </TouchableOpacity>
         </View>
+      </View>
       </>
     )
   }
@@ -181,8 +181,8 @@ export default function VerifyStudentScreen() {
           headerTitleStyle: styles.headerTitle,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
-            </TouchableOpacity>
+          <Ionicons name="arrow-back" size={24} color={Colors[colorScheme ?? "light"].text} />
+        </TouchableOpacity>
           ),
         }}
       />
@@ -192,9 +192,9 @@ export default function VerifyStudentScreen() {
         <View style={styles.content}>
           <View style={styles.introSection}>
             <Text style={styles.title}>Verify Student Status</Text>
-            <Text style={styles.description}>
+        <Text style={styles.description}>
               Upload a photo of your student ID to verify your status as a student. This helps build trust in the marketplace and may unlock student-specific features.
-            </Text>
+        </Text>
           </View>
 
           <View style={styles.uploadSection}>
@@ -228,8 +228,8 @@ export default function VerifyStudentScreen() {
                 <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} />
                 <Text style={styles.uploadingText}>Uploading...</Text>
               </View>
-            )}
-          </View>
+          )}
+        </View>
 
           <View style={styles.guidelinesSection}>
             <Text style={styles.sectionTitle}>Guidelines</Text>

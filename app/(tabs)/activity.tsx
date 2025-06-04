@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { StyleSheet, FlatList, RefreshControl, TouchableOpacity, View as RNView } from "react-native"
-import { Text, View } from "@/components/themed"
+import { Text, View } from "@/components/Themed"
 import { useQuery } from "@tanstack/react-query"
 import { getActivityFeed } from "@/services/activity"
 import { getUserNotifications, markAllNotificationsAsRead } from "@/services/notifications"
@@ -79,7 +79,7 @@ export default function ActivityScreen() {
     }
 
     if (activeTab === "activity") {
-  return (
+      return (
         <FlatList
           data={data}
           renderItem={({ item }) => <ActivityFeedItemCard item={item} />}

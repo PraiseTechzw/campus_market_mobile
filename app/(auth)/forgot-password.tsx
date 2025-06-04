@@ -13,7 +13,7 @@ import {
   Easing,
   Alert,
 } from "react-native"
-import { Text, View } from "@/components/themed"
+import { Text, View } from "@/components/Themed"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import { useRouter } from "expo-router"
 import { supabase } from "@/lib/supabase"
@@ -22,6 +22,7 @@ import AuthGuard from "@/components/auth-guard"
 import { StatusBar } from "expo-status-bar"
 import Colors from "@/constants/Colors"
 import { Ionicons } from "@expo/vector-icons"
+
 export default function ForgotPasswordScreen() {
   return (
     <AuthGuard requireAuth={false}>

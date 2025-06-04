@@ -75,7 +75,7 @@ export default function ActivityScreen() {
     const data = activeTab === "activity" ? activityItems : notificationItems
 
     if (isLoading) {
-      return <ActivityIndicator size="large" color={Colors[colorScheme ?? "light"].tint} style={styles.loader} />
+      return <ActivityIndicator size="large\" color={Colors[colorScheme ?? "light"].tint} style={styles.loader} />
     }
 
     if (activeTab === "activity") {

@@ -1,7 +1,7 @@
 "use client"
 
 import { StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Animated, Image, Dimensions, ColorValue } from "react-native"
-import { Text, View } from "@/components/themed"
+import { Text, View } from "@/components/Themed"
 import { useQuery } from "@tanstack/react-query"
 import { getRecentListings } from "@/services/marketplace"
 import { getRecentAccommodations } from "@/services/accommodation"

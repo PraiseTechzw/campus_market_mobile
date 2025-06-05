@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { StyleSheet, RefreshControl, TouchableOpacity, TextInput, Animated, Image, Dimensions } from "react-native"
-import { Text, View } from "@/components/themed"
+import { Text, View } from "@/components/Themed"
 import { useQuery } from "@tanstack/react-query"
 import { getAccommodations } from "@/services/accommodation"
 import AccommodationCard from "@/components/accommodation/accommodation-card"

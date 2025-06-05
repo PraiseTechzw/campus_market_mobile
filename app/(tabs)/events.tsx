@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { StyleSheet, ActivityIndicator, FlatList, RefreshControl, Image, TouchableOpacity, View as RNView } from "react-native"
-import { Text, View } from "@/components/themed"
+import { Text, View } from "@/components/Themed"
 import { useRouter, Stack } from "expo-router"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import Colors from "@/constants/Colors"

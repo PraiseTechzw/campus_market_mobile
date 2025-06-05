@@ -12,7 +12,7 @@ import {
   Animated,
   Easing,
 } from "react-native"
-import { Text, View } from "@/components/themed"
+import { Text, View } from "@/components/Themed"
 import { useColorScheme } from "@/hooks/use-color-scheme"
 import { useRouter } from "expo-router"
 import { supabase } from "@/lib/supabase"

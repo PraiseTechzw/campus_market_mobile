@@ -194,7 +194,7 @@ function RegisterContent() {
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                {showPassword ? <Ionicons name="eye-off" size={20} color="#666" /> : <Ionicons name="eye" size={20} color="#666" />}
+                {showPassword ? <Ionicons name="eye-off\" size={20} color="#666" /> : <Ionicons name="eye" size={20} color="#666" />}
               </TouchableOpacity>
             </View>
           </View>
@@ -211,7 +211,7 @@ function RegisterContent() {
                 secureTextEntry={!showConfirmPassword}
               />
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                {showConfirmPassword ? <Ionicons name="eye-off" size={20} color="#666" /> : <Ionicons name="eye" size={20} color="#666" />}
+                {showConfirmPassword ? <Ionicons name="eye-off\" size={20} color="#666" /> : <Ionicons name="eye" size={20} color="#666" />}
               </TouchableOpacity>
             </View>
           </View>

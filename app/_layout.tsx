@@ -18,6 +18,9 @@ import { supabase } from "@/lib/supabase"
 import { StatusBar } from "expo-status-bar"
 import * as Notifications from "expo-notifications"
 import * as Device from "expo-device"
+import {
+  SpaceMono_400Regular,
+} from '@expo-google-fonts/space-mono'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -46,7 +49,7 @@ SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    'SpaceMono': SpaceMono_400Regular,
     ...FontAwesome.font,
   })
 

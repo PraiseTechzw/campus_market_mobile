@@ -21,6 +21,7 @@ import * as Device from "expo-device"
 import {
   SpaceMono_400Regular,
 } from '@expo-google-fonts/space-mono'
+import { useFrameworkReady } from '@/hooks/useFrameworkReady'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -48,6 +49,7 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
+  useFrameworkReady();
   const [loaded, error] = useFonts({
     'SpaceMono': SpaceMono_400Regular,
     ...FontAwesome.font,
